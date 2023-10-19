@@ -41,7 +41,7 @@
         android:id="@+id/mapLoadingOverview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FF4800"
+        android:background="#FFFFFF"
         android:text="Map is loading..."
         android:gravity="center"
         android:textColor="#000000"
@@ -49,15 +49,38 @@
         android:visibility="visible" />
 
 
-    <Button
-        android:id="@+id/testButton"
+
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Test Markers"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.1" />
+
+    <com.google.android.material.slider.Slider
+        android:id="@+id/latencySlider"
+        android:layout_width="500dp"
+        android:layout_height="1dp"
+        android:rotation="270"
+        android:valueFrom="50"
+        android:valueTo="250"
+        android:stepSize="50"
+        app:layout_constraintEnd_toStartOf="@id/guideline"
+        app:layout_constraintHeight_percent="0.5"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        android:padding="16dp"
-    />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/sliderLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@+id/latencySlider"
+        app:layout_constraintTop_toTopOf="@+id/latencySlider"
+        app:layout_constraintBottom_toBottomOf="@+id/latencySlider" />
+
 
     <!-- Back Button -->
     <Button

@@ -22,6 +22,19 @@ object SolanaPreferenceManager {
     private const val ENCRYPTED_MNEMONIC = "encrypted_mnemonic"
     private const val HOT_ACCOUNT_KEY = "hot_account"
     private const val AUTHORITY_KEY = "authority"
+    private const val LATENCY_SLIDER_VALUE = "latency_slider_value"
+
+
+    fun storeLatencySliderValue(value: Float) {
+        val editor = sharedPreferences?.edit()
+        editor?.putFloat(LATENCY_SLIDER_VALUE, value)
+        editor?.apply()
+    }
+
+    fun getLatencySliderValue(context: Context): Float {
+        return sharedPreferences?.getFloat(LATENCY_SLIDER_VALUE, 50f) ?: 50f // 50f is the default value
+    }
+
 
     @JvmStatic
     fun initialize(context: Context) {

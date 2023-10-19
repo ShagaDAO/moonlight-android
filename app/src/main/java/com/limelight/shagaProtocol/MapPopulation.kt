@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.limelight.R
 import com.limelight.solanaWallet.SolanaApi
+import com.limelight.solanaWallet.SolanaPreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -187,7 +188,8 @@ class MapPopulation {
             val ipAddressString = affair.ipAddress
 
             val coordinatesResult = NetworkUtils.ipToCoordinates(context, ipAddressString)
-            val timeout = 250L // TODO: HAVE A SETTING FOR TOLERATED LATENCY
+            val timeout = SolanaPreferenceManager.getLatencySliderValue(context).toLong()
+
             val latencyResult = NetworkUtils.pingIpAddress(ipAddressString, timeout)
             Log.d("buildMarkerProperties", "Coordinates Result: $coordinatesResult, Latency Result: $latencyResult")
 

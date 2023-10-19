@@ -186,7 +186,7 @@
 
         <!-- Add this line to register MapActivity -->
         <activity android:name=".shagaProtocol.MapActivity"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+            android:theme="@style/RentingActivityTheme">
             <!-- Intent filters go here, if any -->
         </activity>
 
@@ -196,7 +196,7 @@
         </activity>
 
         <activity android:name=".solanaWallet.WalletActivity"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+            android:theme="@style/RentingActivityTheme">
             <!-- Add intent filters here if necessary -->
         </activity>
 

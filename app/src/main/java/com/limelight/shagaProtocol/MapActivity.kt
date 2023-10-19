@@ -1,15 +1,21 @@
 package com.limelight.shagaProtocol
 
  import android.Manifest
+ import android.annotation.SuppressLint
+ import android.content.Context
  import android.content.Intent
  import android.content.pm.PackageManager
  import android.graphics.BitmapFactory
+ import android.graphics.Rect
  import android.os.Build
  import android.os.Bundle
-import android.util.Log
+ import android.util.DisplayMetrics
+ import android.util.Log
  import android.view.LayoutInflater
+ import android.view.MotionEvent
  import android.view.View
  import android.view.ViewManager
+ import android.view.ViewTreeObserver
  import android.widget.Button
  import android.widget.FrameLayout
  import android.widget.TextView
@@ -60,6 +66,9 @@ import com.mapbox.maps.Style
  import kotlinx.coroutines.async
  import kotlinx.coroutines.awaitAll
  import kotlinx.coroutines.Dispatchers
+ import com.google.android.material.slider.Slider
+ import com.limelight.solanaWallet.SolanaPreferenceManager
+
 
 /* simplified flow:
 Map initializes.
@@ -70,6 +79,14 @@ Populate the map with markers.
 Enable or activate the map click listener.
 */
 
+const val REAL_TIME = "Real-Time"  // Lowest Latency
+const val FAST_PACED = "Fast-Paced" // Moderate Latency
+const val BALANCED = "Balanced" // High Latency but balanced
+const val STRATEGY_FOCUS = "Strategy Focus" // Very High Latency, suitable for strategy games
+const val CINEMATIC = "Cinematic" // Extreme Latency, prioritizing visual quality
+const val CUSTOM = "Custom" // User-Defined
+
+
 class MapActivity : AppCompatActivity(), OnMapClickListener {
     private lateinit var mapView: MapView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -78,14 +95,17 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
     private lateinit var pointAnnotationManager: PointAnnotationManager
     private val annotationToPropertiesMap: MutableMap<PointAnnotation, MapPopulation.MarkerProperties> = mutableMapOf()
     private var userLocation: Point? = null
+    private lateinit var latencySlider: Slider
 
+    @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
+        SolanaPreferenceManager.initialize(this)
+
         mapView = findViewById(R.id.mapView)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
 
         mapView.getMapboxMap().loadStyleUri(Style.MAPBOX_STREETS) {
 
@@ -114,6 +134,9 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
             initializeLocation() // initialize location
 
             initializeLocationPuck() // this initializes the location
+
+            setUpSlider()
+
         }
 
         // Moved button initialization to its own function
@@ -129,6 +152,76 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
         }
 
         //initializeTestButton()
+    }
+
+
+    @SuppressLint("ClickableViewAccessibility")
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun setUpSlider() {
+        val latencySlider: Slider = findViewById(R.id.latencySlider)
+        val sliderLabel: TextView = findViewById(R.id.sliderLabel)
+
+        val storedSliderValue = SolanaPreferenceManager.getLatencySliderValue(this)
+        latencySlider.value = storedSliderValue
+
+        sliderLabel.text = when (storedSliderValue) {
+            50f -> REAL_TIME
+            100f -> FAST_PACED
+            150f -> BALANCED
+            200f -> STRATEGY_FOCUS
+            250f -> CINEMATIC
+            else -> CUSTOM
+        }
+
+        latencySlider.setOnTouchListener { v, event ->
+            val location = IntArray(2)
+            latencySlider.getLocationOnScreen(location)
+            val rect = Rect(location[0], location[1],
+                location[0] + latencySlider.width, location[1] + latencySlider.height)
+
+            if (!rect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                return@setOnTouchListener false
+            }
+
+            if (event.action == MotionEvent.ACTION_UP) {
+                v.performClick()
+            }
+            false
+        }
+
+        latencySlider.setLabelFormatter { value: Float ->
+            "${value.toInt()} ms"
+        }
+
+
+        latencySlider.addOnChangeListener { slider, value, fromUser ->
+            Log.d("SliderValue", "Slider Value: $value")
+            SolanaPreferenceManager.storeLatencySliderValue(value)
+            sliderLabel.text = when (value) {
+                50f -> REAL_TIME
+                100f -> FAST_PACED
+                150f -> BALANCED
+                200f -> STRATEGY_FOCUS
+                250f -> CINEMATIC
+                else -> CUSTOM
+            }
+        }
+
+        latencySlider.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                // Ensure this listener is removed so that it doesn't get called multiple times
+                latencySlider.viewTreeObserver.removeOnGlobalLayoutListener(this)
+
+                val location = IntArray(2)
+                latencySlider.getLocationOnScreen(location)
+
+                val textX = 16  // 16 pixels from the left edge of the screen
+                val textY = location[1] + latencySlider.height - 350  // Adjusted height
+
+                sliderLabel.x = textX.toFloat()
+                sliderLabel.y = textY.toFloat()
+            }
+        })
     }
 
 
