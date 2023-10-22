@@ -36,6 +36,7 @@ data class DecodedAffairsData(
     val authority: PublicKey,
     val client: PublicKey,
     val rental: PublicKey?,
+    val coordinates: String,
     val ipAddress: String,
     val cpuName: String,
     val gpuName: String,

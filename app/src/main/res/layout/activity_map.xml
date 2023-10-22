@@ -58,6 +58,7 @@
         android:orientation="vertical"
         app:layout_constraintGuide_percent="0.1" />
 
+    <!-- TODO: Make the "Slider Box" large enough to fit the text -->
     <com.google.android.material.slider.Slider
         android:id="@+id/latencySlider"
         android:layout_width="500dp"

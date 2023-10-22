@@ -376,10 +376,11 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
 
         button.setOnClickListener {
             Log.d("shagaMapActivity", "Populate Map Button Clicked")
-            val affairsListAddress = getString(R.string.affairs_list_address)
+            val programAddress = getString(R.string.program_address)
 
-            // Create a PublicKey object from the string address
-            val affairsListAddressPubkey = PublicKey(affairsListAddress)
+            val affairsListAddressPubkeyPair = ShagaTransactions.ProgramAddressHelper.findAffairList(PublicKey(programAddress))
+            val affairsListAddressPubkey = affairsListAddressPubkeyPair.first
+
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -473,18 +474,8 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                 val lamportsToSolConversionRate: ULong = 1_000_000_000uL  // 1 Sol = 1,000,000,000 Lamports
 
 
-                                // === DEBUG ONLY: START ===
-                                // Filtering data based on authority
-                                val filteredAffairsDataList = affairsDataList.filter { it.authority.toString() == "FL4hoSQoAj7N7UE9yTyZXgQNsmpYmHk944mLXyZxWsD6" }
-                                if (filteredAffairsDataList.isEmpty()) {
-                                    Log.e("shagaMapActivity", "No valid AffairsData found after filtering.")
-                                    return@launch
-                                }
-                                // === DEBUG ONLY: END ===
-
-
                                 // Data transformation & local temporary storage
-                                val deferreds = filteredAffairsDataList.map { affairData -> // TODO: RESTORE THE OLD val deferreds = affairsDataList.map { affairData ->
+                                val deferreds = affairsDataList.map { affairData ->
                                     async(Dispatchers.IO) {
                                         affairData.let { nonNullData ->
                                             nonNullData.authority.let { authority: PublicKey ->  // Explicitly specify the type
@@ -496,6 +487,7 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                                         Base58.encode(authorityBytes)  // Use Base58 encoding
 
                                                     // Since ipAddress, cpuName, and gpuName are now Strings, we can use them directly.
+                                                    val coordinatesString = nonNullData.coordinates
                                                     val ipAddressString =
                                                         nonNullData.ipAddress ?: ""
                                                     val cpuNameString = nonNullData.cpuName ?: ""
@@ -506,6 +498,7 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                                         authority = nonNullData.authority,
                                                         client = nonNullData.client,
                                                         rental = nonNullData.rental,
+                                                        coordinates = coordinatesString,
                                                         ipAddress = ipAddressString,
                                                         cpuName = cpuNameString,
                                                         gpuName = gpuNameString,

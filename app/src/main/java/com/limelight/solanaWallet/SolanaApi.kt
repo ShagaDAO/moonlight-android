@@ -33,23 +33,6 @@ object SolanaApi {
     val solana = Solana(network)
     val scope = CoroutineScope(Dispatchers.IO)
 
-    // Define a Java-friendly callback interface
-    interface JavaCallback {
-        fun onSuccess(blockHash: String)
-        fun onFailure(e: Exception)
-    }
-
-    @JvmStatic
-    fun getRecentBlockHash(callback: JavaCallback) {
-        GlobalScope.launch {
-            val result = getRecentBlockHashFromApi()
-            if (result.isSuccess) {
-                callback.onSuccess(result.getOrNull() ?: "")
-            } else {
-                callback.onFailure(Exception("Failed to get the block hash."))
-            }
-        }
-    }
     suspend fun getRecentBlockHashFromApi(): Result<String> {
         return suspendCancellableCoroutine { continuation ->
             solana.api.getRecentBlockhash { result ->
@@ -83,18 +66,20 @@ object SolanaApi {
         @Serializable(with = PublicKeyAs32ByteSerializer::class)
         val rental: PublicKey?,
 
-        val ipAddress: String,  // Changed to String
-        val cpuName: String,    // Changed to String
-        val gpuName: String,    // Changed to String
+        val coordinates: String,
 
-        val totalRamMb: UInt,  // Type remains the same
-        val solPerHour: ULong, // Type remains the same
+        val ipAddress: String,
+        val cpuName: String,
+        val gpuName: String,
 
-        val affairState: AffairState,  // Changed to enum type
+        val totalRamMb: UInt,
+        val solPerHour: ULong,
 
-        val affairTerminationTime: ULong,  // Type remains the same
-        val activeRentalStartTime: ULong, // Type remains the same
-        val dueRentAmount: ULong  // Type remains the same
+        val affairState: AffairState,
+
+        val affairTerminationTime: ULong,
+        val activeRentalStartTime: ULong,
+        val dueRentAmount: ULong
     )
 
 

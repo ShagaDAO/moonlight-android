@@ -60,63 +60,6 @@ class MapPopulation {
             return ipPattern.matcher(ipAddress).matches()
         }
 
-        suspend fun ipToCoordinates(context: Context, ipAddress: String): Result<MapPopulation.Coordinates> = withContext(Dispatchers.IO) {
-
-            try {
-                // Step 1: Validate and Get string resources
-                val rapidApiKey = context.getString(R.string.rapidapi_key)
-                val rapidApiHost = context.getString(R.string.rapidapi_host)
-                val apiUrl = context.getString(R.string.ip_to_coordinates_url)
-
-                // Validate IP address (add more robust validation if needed)
-                if (!isValidIpAddress(ipAddress)) {
-                    throw IllegalArgumentException("IP address is invalid")
-                }
-
-                /// Step 2: Create request
-                val mediaType = "application/x-www-form-urlencoded".toMediaTypeOrNull()
-                val body = "ip=$ipAddress".toRequestBody(mediaType)
-
-                val request = Request.Builder()
-                    .url(apiUrl)
-                    .post(body)
-                    .addHeader("content-type", "application/x-www-form-urlencoded")
-                    .addHeader("X-RapidAPI-Key", rapidApiKey)
-                    .addHeader("X-RapidAPI-Host", rapidApiHost)
-                    .build()
-
-                // Step 3: Execute request and handle response
-                val client = OkHttpClient()
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        Log.e("ipToCoordinates", "Unexpected response code: $response")
-                        throw Exception("Unexpected response code")
-                    }
-
-                    val responseBody = response.body?.string() ?: throw Exception("Empty response body")
-                    Log.d("shagaMapActivityPopulation", "Response Body: $responseBody")  // Log the raw response body
-
-                    // Parsing JSON to extract latitude and longitude
-                    try {
-                        val json = JSONObject(responseBody)
-                        val latitude = json.getDouble("latitude")
-                        val longitude = json.getDouble("longitude")
-                        Log.d("shagaMapActivityPopulation", "Parsed Latitude: $latitude, Longitude: $longitude")  // Log parsed values
-
-                        return@withContext Result.success(Coordinates(latitude, longitude))
-                    } catch (jsonException: JSONException) {
-                        Log.e("ipToCoordinates", "JSON parsing failed", jsonException)
-                        throw jsonException
-                    }
-                }
-            } catch (e: Exception) {
-                // Step 4: Error handling
-                Log.e("ipToCoordinates", "Failed to fetch coordinates", e)
-                return@withContext Result.failure(e)
-            }
-        }
-
-
 
         fun pingIpAddress(ipAddress: String, timeoutMs: Long): Result<Long> {
             try {
@@ -187,13 +130,21 @@ class MapPopulation {
             // Use already decoded ipAddress
             val ipAddressString = affair.ipAddress
 
-            val coordinatesResult = NetworkUtils.ipToCoordinates(context, ipAddressString)
+            // Extract coordinates directly from affair
+            val coordinatesString = affair.coordinates
+            val latLong = coordinatesString.split(',').map { it.trim().toDouble() }  // Split and convert to Double
+            val latitude = latLong[0]
+            val longitude = latLong[1]
+
+            val coordinates = Coordinates(latitude, longitude)  // Use your Coordinates class here
+
+
             val timeout = SolanaPreferenceManager.getLatencySliderValue(context).toLong()
 
             val latencyResult = NetworkUtils.pingIpAddress(ipAddressString, timeout)
-            Log.d("buildMarkerProperties", "Coordinates Result: $coordinatesResult, Latency Result: $latencyResult")
+            Log.d("buildMarkerProperties", "Latency Result: $latencyResult")
 
-            if (coordinatesResult.isSuccess && latencyResult.isSuccess) {
+            if (latencyResult.isSuccess) {
                 // Use already decoded cpuName and gpuName
                 val cpuNameString = affair.cpuName
                 val gpuNameString = affair.gpuName
@@ -214,7 +165,7 @@ class MapPopulation {
                 // Now build MarkerProperties
                 val markerProperties = MarkerProperties(
                     ipAddress = ipAddressString,
-                    coordinates = coordinatesResult.getOrThrow(),
+                    coordinates = coordinates,
                     latency = latencyResult.getOrThrow(),
                     gpuName = gpuNameString,
                     cpuName = cpuNameString,
@@ -231,7 +182,6 @@ class MapPopulation {
                 return Result.success(markerProperties)
             } else {
                 val failureReasons = mutableListOf<String>()
-                coordinatesResult.exceptionOrNull()?.let { failureReasons.add("coordinates: ${it.message}") }
                 latencyResult.exceptionOrNull()?.let { failureReasons.add("latency: ${it.message}") }
 
                 return Result.failure(Exception("Failed to build marker properties due to: ${failureReasons.joinToString(", ")}"))
