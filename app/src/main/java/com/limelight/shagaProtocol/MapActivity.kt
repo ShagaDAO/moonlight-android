@@ -5,8 +5,13 @@ package com.limelight.shagaProtocol
  import android.content.Context
  import android.content.Intent
  import android.content.pm.PackageManager
+ import android.graphics.Bitmap
  import android.graphics.BitmapFactory
+ import android.graphics.Canvas
+ import android.graphics.Color
+ import android.graphics.Paint
  import android.graphics.Rect
+ import android.graphics.Typeface
  import android.os.Build
  import android.os.Bundle
  import android.util.DisplayMetrics
@@ -18,7 +23,10 @@ package com.limelight.shagaProtocol
  import android.view.ViewTreeObserver
  import android.widget.Button
  import android.widget.FrameLayout
+ import android.widget.ImageView
+ import android.widget.LinearLayout
  import android.widget.TextView
+ import android.widget.Toast
  import androidx.annotation.RequiresApi
  import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -49,6 +57,8 @@ import com.mapbox.maps.Style
  import java.util.Locale
  import kotlin.math.pow
  import androidx.lifecycle.lifecycleScope
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import androidx.recyclerview.widget.RecyclerView
  import kotlinx.coroutines.launch
  import com.mapbox.maps.CameraOptions
  import com.mapbox.maps.EdgeInsets
@@ -68,6 +78,14 @@ import com.mapbox.maps.Style
  import kotlinx.coroutines.Dispatchers
  import com.google.android.material.slider.Slider
  import com.limelight.solanaWallet.SolanaPreferenceManager
+ import kotlinx.coroutines.Deferred
+ import kotlinx.coroutines.runBlocking
+ import kotlinx.coroutines.withContext
+ import org.json.JSONObject
+ import java.io.BufferedReader
+ import java.io.InputStreamReader
+ import java.net.HttpURLConnection
+ import java.net.URL
 
 
 /* simplified flow:
@@ -87,6 +105,27 @@ const val CINEMATIC = "Cinematic" // Extreme Latency, prioritizing visual qualit
 const val CUSTOM = "Custom" // User-Defined
 
 
+fun fetchSolPriceInUSDC(): Double {
+    var urlConnection: HttpURLConnection? = null
+    try {
+        val url = URL("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd")
+        urlConnection = url.openConnection() as HttpURLConnection
+        val bufferedReader = BufferedReader(InputStreamReader(urlConnection.inputStream))
+
+        val stringBuilder = StringBuilder()
+        bufferedReader.forEachLine { stringBuilder.append(it) }
+        val response = stringBuilder.toString()
+
+        val jsonObject = JSONObject(response)
+        return jsonObject.getJSONObject("solana").getDouble("usd")
+    } catch (e: Exception) {
+        e.printStackTrace()
+        throw RuntimeException("Failed to fetch Solana price from CoinGecko.")
+    } finally {
+        urlConnection?.disconnect()
+    }
+}
+
 class MapActivity : AppCompatActivity(), OnMapClickListener {
     private lateinit var mapView: MapView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -95,14 +134,29 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
     private lateinit var pointAnnotationManager: PointAnnotationManager
     private val annotationToPropertiesMap: MutableMap<PointAnnotation, MapPopulation.MarkerProperties> = mutableMapOf()
     private var userLocation: Point? = null
-    private lateinit var latencySlider: Slider
+    private var solToUsdcRate: Double? = null
+    private var lastButtonPressTime: Long? = null
+    private val annotationToViewMap: MutableMap<PointAnnotation, View> = mutableMapOf()
+    private val processedAuthorities = HashSet<PublicKey>()
+
+
 
     @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
         SolanaPreferenceManager.initialize(this)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                solToUsdcRate = fetchSolPriceInUSDC()
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                }
+            }
+        }
 
         mapView = findViewById(R.id.mapView)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -142,6 +196,8 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
         // Moved button initialization to its own function
         initializePopulateMapButton()
 
+        initializeRefreshLatencyButton()
+
         initializeBackButton()
 
         // Initialize new Go To Wallet Activity Button
@@ -150,8 +206,6 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
             val intent = Intent(this@MapActivity, WalletActivity::class.java)
             startActivity(intent)
         }
-
-        //initializeTestButton()
     }
 
 
@@ -225,14 +279,61 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
     }
 
 
+    private fun createCompositeBitmap(baseBitmap: Bitmap, latency: String): Bitmap {
+        val newBitmap = Bitmap.createBitmap(baseBitmap.width, baseBitmap.height, baseBitmap.config)
+        val canvas = Canvas(newBitmap)
+        canvas.drawBitmap(baseBitmap, 0f, 0f, null)
+
+        // Create a paint for the text
+        val textPaint = Paint()
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 250f
+        textPaint.isAntiAlias = true
+
+        // Create a paint for the text stroke
+        val strokePaint = Paint()
+        strokePaint.color = Color.BLACK
+        strokePaint.textSize = 250f
+        strokePaint.style = Paint.Style.STROKE
+        strokePaint.strokeWidth = 50f
+        strokePaint.isAntiAlias = true
+
+        // Calculate the position to place the 'ms' text at the bottom right of the image
+        val msXPos = baseBitmap.width - 450f // Fixed X position for " ms", moved 100f units to the left
+        val msYPos = baseBitmap.height - 120f // Fixed Y position for " ms"
+
+        // Draw 'ms' first
+        canvas.drawText(" ms", msXPos, msYPos, strokePaint)
+        canvas.drawText(" ms", msXPos, msYPos, textPaint)
+
+        // Calculate the position to place the latency number right next to 'ms'
+        val numberWidth = textPaint.measureText(latency)
+        val numberXPos = msXPos - numberWidth // Position for the latency number, it's to the left of " ms"
+
+        // Draw the latency number
+        canvas.drawText(latency, numberXPos, msYPos, strokePaint)
+        canvas.drawText(latency, numberXPos, msYPos, textPaint)
+
+        return newBitmap
+    }
 
     private fun addGamingPCMarkerWithProperties(marker: MapPopulation.MarkerProperties): PointAnnotation {
+
+        // Create the composite bitmap using latency
+        val baseBitmap = BitmapFactory.decodeResource(resources, R.drawable.gaming_pc)
+        val compositeBitmap = createCompositeBitmap(baseBitmap, "${marker.latency}")
+
+        val uniqueIconID = "Lenders_${marker.sunshinePublicKey}"
+
+        mapboxMap.getStyle { it.addImage(uniqueIconID, compositeBitmap) }
+
         val pointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
             .withPoint(Point.fromLngLat(marker.coordinates.longitude, marker.coordinates.latitude))
-            .withIconImage("Lenders")
+            .withIconImage(uniqueIconID)
             .withIconSize(0.2)
         val createdAnnotation = pointAnnotationManager.create(pointAnnotationOptions)
         annotationToPropertiesMap[createdAnnotation] = marker
+
         return createdAnnotation
     }
 
@@ -249,6 +350,9 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                 val intent = Intent(this@MapActivity, RentingActivity::class.java)
                 intent.putExtra("sunshinePublicKey", markerProperties.sunshinePublicKey)
                 intent.putExtra("latency", markerProperties.latency)
+                solToUsdcRate?.let { rate ->
+                    intent.putExtra("solToUsdcRate", rate)
+                }
                 Log.d("shagaMapActivity", "Sending sunshinePublicKey: ${markerProperties.sunshinePublicKey}")
                 startActivity(intent)
             }
@@ -263,6 +367,9 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                 Log.e("ViewPopulationError", "Failed to populate the view annotation.")
                 return
             }
+
+            // Add the view to the annotationToViewMap, used for when we need to update the latency field
+            annotationToViewMap[pointAnnotation] = view
 
             val options = ViewAnnotationOptions.Builder()
                 .geometry(pointAnnotation.geometry)
@@ -281,36 +388,40 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
 
     private fun populateViewAnnotationWithMarkerProperties(view: View, markerProperties: MapPopulation.MarkerProperties): Boolean {
         return try {
+
+            // Populate the recycler view with game icons
+            val gameIconRecyclerView: RecyclerView = view.findViewById(R.id.gameIconRecyclerView)
+            gameIconRecyclerView.layoutManager = LinearLayoutManager(view.context, LinearLayoutManager.HORIZONTAL, false)
+            val adapter = GameIconAdapter(markerProperties.gameIcons)
+            gameIconRecyclerView.adapter = adapter
+
             // Populate Latency
             val latencyTextView: TextView = view.findViewById(R.id.latency)
             latencyTextView.text = "Latency: ${markerProperties.latency} ms"
-            // Populate GPU Model
+
             view.findViewById<TextView>(R.id.gpuName).text = "GPU Model: ${markerProperties.gpuName}"
-            // Populate CPU Model
             view.findViewById<TextView>(R.id.cpuName).text = "CPU Model: ${markerProperties.cpuName}"
-            // Populate Total RAM
             val totalRamGb = markerProperties.totalRamMb.toDouble() / 1024.0
             view.findViewById<TextView>(R.id.totalRamGb).text = "Total RAM: ${String.format("%.2f", totalRamGb)} GB"
-            // Populate Cost per Hour
-            view.findViewById<TextView>(R.id.usdcPerHour).text = "Cost per hour: ${markerProperties.solPerHour} SOL"
-            // Populate Rent Available Until
+
+            view.findViewById<TextView>(R.id.usdcPerHour).text = "Cost per hour: ${markerProperties.usdcPerHour} $"
+
             val affairTerminationTimeInMillis = markerProperties.affairTerminationTime.toLong() * 1000
             val affairTerminationDate = Date(affairTerminationTimeInMillis)
             val format = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
             view.findViewById<TextView>(R.id.affairTerminationTime).text = "Rent available until: ${format.format(affairTerminationDate)}"
-            // Populate Lender's ID
-            view.findViewById<TextView>(R.id.sunshinePublicKey).text = "Lender's ID: ${markerProperties.sunshinePublicKey}"
-            // Add close button functionality
+
+            view.findViewById<TextView>(R.id.sunshinePublicKey).text = "Server's ID: ${markerProperties.sunshinePublicKey}"
+
             val closeButton: Button = view.findViewById(R.id.closeButton)
             closeButton.setOnClickListener {
                 (view.parent as? ViewManager)?.removeView(view)
             }
 
-            true  // Return true if successful
+            true
         } catch (e: Exception) {
-            // Handle exception
             Log.e("ViewPopulationError", "Error populating view annotation: ${e.message}")
-            false  // Return false if an error occurs
+            false
         }
     }
 
@@ -369,13 +480,110 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
         }
     }
 
-    // Function to fetch AffairsList
+
+   private fun initializeRefreshLatencyButton() {
+        val refreshLatencyButton: FloatingActionButton = findViewById(R.id.refreshLatencyButton)
+
+        refreshLatencyButton.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+            val lastTime = lastButtonPressTime ?: 0L
+
+            // Check if 3 or more seconds have passed since the last button press
+            if (currentTime - lastTime >= 3000) {
+                // Update the lastButtonPressTime
+                lastButtonPressTime = currentTime
+                // Launch a coroutine to call the suspend function
+                lifecycleScope.launch(Dispatchers.Main) {
+                    updateLatenciesAndViews()
+                }
+
+            } else {
+                // Notify the user that they need to wait
+                Toast.makeText(this, "Please wait for 3 seconds before refreshing again", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private suspend fun updateLatenciesAndViews() {
+        val deferreds: MutableList<Deferred<Unit>> = mutableListOf()
+
+        // Create and collect Deferred objects for each operation
+        annotationToPropertiesMap.forEach { (pointAnnotation, markerProperties) ->
+            val deferred = CoroutineScope(Dispatchers.IO).async {
+                try {
+                    val timeout = SolanaPreferenceManager.getLatencySliderValue(this@MapActivity).toLong()
+                    val latencyResult = MapPopulation.MarkerUtils.retryLatencyCheck(markerProperties.ipAddress, timeout)
+
+                    if (latencyResult.isSuccess) {
+                        val newLatency = latencyResult.getOrNull() ?: return@async // exit if null
+                        val updatedMarkerProperties = markerProperties.copy(latency = newLatency)
+
+                        annotationToPropertiesMap[pointAnnotation] = updatedMarkerProperties
+
+                        withContext(Dispatchers.Main) {
+                            updateViewAnnotation(pointAnnotation, updatedMarkerProperties)
+                            updateMarkerIcon(pointAnnotation, updatedMarkerProperties)
+                        }
+                    } else {
+                        Log.e("PingError", "Failed to update latency for IP: ${markerProperties.ipAddress}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("CoroutineError", "An error occurred in coroutine", e)
+                }
+            }
+            deferreds.add(deferred)
+        }
+
+        // Wait for all operations to complete in the IO dispatcher context
+        withContext(Dispatchers.IO) {
+            deferreds.awaitAll()
+        }
+    }
+
+    private fun updateViewAnnotation(pointAnnotation: PointAnnotation, markerProperties: MapPopulation.MarkerProperties) {
+        val view = annotationToViewMap[pointAnnotation] ?: return
+        val latencyTextView: TextView = view.findViewById(R.id.latency)
+        latencyTextView.text = "Latency: ${markerProperties.latency} ms"
+    }
+
+    private fun updateMarkerIcon(pointAnnotation: PointAnnotation, markerProperties: MapPopulation.MarkerProperties) {
+        // Step 1: Create a new composite bitmap with updated latency
+        val baseBitmap = BitmapFactory.decodeResource(resources, R.drawable.gaming_pc)
+        val updatedCompositeBitmap = createCompositeBitmap(baseBitmap, "${markerProperties.latency}")
+        // Step 2: Add the new bitmap to the map style, replacing the old one
+        val uniqueIconID = "Lenders_${markerProperties.sunshinePublicKey}"
+        mapboxMap.getStyle { it.addImage(uniqueIconID, updatedCompositeBitmap) }
+        // Step 3: Create new PointAnnotationOptions
+        val newPointAnnotationOptions: PointAnnotationOptions = PointAnnotationOptions()
+            .withPoint(pointAnnotation.point)  // Preserve the existing point
+            .withIconImage(uniqueIconID)       // Set the new image
+            .withIconSize(0.2)
+        // Step 4: Delete the old PointAnnotation
+        pointAnnotationManager.delete(pointAnnotation)
+        // Step 4.1: Remove the old annotation from annotationToPropertiesMap
+        annotationToPropertiesMap.remove(pointAnnotation)
+        // Step 5: Create a new PointAnnotation with updated options
+        val newPointAnnotation = pointAnnotationManager.create(newPointAnnotationOptions)
+        // Step 6: Update the mapping in annotationToPropertiesMap
+        annotationToPropertiesMap[newPointAnnotation] = markerProperties
+    }
+
+
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun initializePopulateMapButton() {
         val button = findViewById<FloatingActionButton>(R.id.populateMapButton)
 
         button.setOnClickListener {
-            Log.d("shagaMapActivity", "Populate Map Button Clicked")
+            val currentTime = System.currentTimeMillis()
+            val lastTime = lastButtonPressTime ?: 0L
+
+            // Check if 3 or more seconds have passed since the last button press
+            if (currentTime - lastTime >= 3000) {
+                // Update the lastButtonPressTime
+                lastButtonPressTime = currentTime
+
+                Log.d("shagaMapActivity", "Populate Map Button Clicked")
             val programAddress = getString(R.string.program_address)
 
             val affairsListAddressPubkeyPair = ShagaTransactions.ProgramAddressHelper.findAffairList(PublicKey(programAddress))
@@ -474,8 +682,13 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                 val lamportsToSolConversionRate: ULong = 1_000_000_000uL  // 1 Sol = 1,000,000,000 Lamports
 
 
+                                // Filter out affairs that are already in the HashMap.
+                                val filteredAffairsDataList = affairsDataList.filter { affairData ->
+                                    !processedAuthorities.contains(affairData.authority)
+                                }
+
                                 // Data transformation & local temporary storage
-                                val deferreds = affairsDataList.map { affairData ->
+                                val deferreds = filteredAffairsDataList.map { affairData ->
                                     async(Dispatchers.IO) {
                                         affairData.let { nonNullData ->
                                             nonNullData.authority.let { authority: PublicKey ->  // Explicitly specify the type
@@ -511,8 +724,7 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                                     )
 
                                                     // Store the decoded data in the HashMap
-                                                    AffairsDataHolder.affairsMap[authorityKey] =
-                                                        decodedData
+                                                    AffairsDataHolder.affairsMap[authorityKey] = decodedData
                                                 }
                                             }
                                         }
@@ -530,9 +742,17 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                                     // Convert the DecodedAffairsData to MarkerProperties
                                     val deferredMarkerProperties = AffairsDataHolder.affairsMap.values.map { decodedData ->
                                         async(Dispatchers.IO) {
-                                            runCatching {
-                                                mapPopulation.buildMarkerProperties(this@MapActivity, decodedData)
-                                            }.getOrNull()
+                                            // Check if this public key is already processed
+                                            val currentPublicKey = (decodedData.authority)
+                                            if (!processedAuthorities.contains(currentPublicKey)) {
+                                                runCatching {
+                                                    solToUsdcRate?.let { rate ->
+                                                        mapPopulation.buildMarkerProperties(this@MapActivity, decodedData, rate)
+                                                    }
+                                                }.getOrNull()
+                                            } else {
+                                                null // Skip this one, it's already processed
+                                            }
                                         }
                                     }
 
@@ -547,7 +767,14 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
 
                                     // Add markers for all successful results
                                     successfulMarkerProperties.forEach { markerProperty ->
-                                        addGamingPCMarkerWithProperties(markerProperty)
+                                        val sunshinePublicKey = PublicKey(markerProperty.sunshinePublicKey)
+
+                                        synchronized(processedAuthorities) {
+                                            if (!processedAuthorities.contains(sunshinePublicKey)) {
+                                                addGamingPCMarkerWithProperties(markerProperty)
+                                                processedAuthorities.add(sunshinePublicKey)
+                                            }
+                                        }
                                     }
 
                                     // Adjust the camera to fit all markers and user's location
@@ -576,9 +803,11 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
                     e.printStackTrace()
                 }
             }
+            } else {
+                Toast.makeText(this, "Please wait for 3 seconds before refreshing again", Toast.LENGTH_SHORT).show()
+            }
         }
     }
-
 
 
     private fun initializeBackButton() {
@@ -588,23 +817,6 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
         }
     }
 
-    fun handleMapClick(
-        mapboxMap: MapboxMap,
-        point: Point,
-        callback: QueryFeaturesCallback
-    ) {
-        // Convert clicked point to pixel coordinate
-        val pixel = mapboxMap.pixelForCoordinate(point)
-        // Create the geometry object for querying rendered features
-        val geometry = RenderedQueryGeometry(pixel)
-        // Create default query options
-        val options = RenderedQueryOptions(emptyList(),null)
-        // Execute the query
-        mapboxMap.queryRenderedFeatures(geometry, options, callback)
-    }
-
-
-
 
     private fun onMapReady() {
         val mapLoadingOverview: TextView = findViewById(R.id.mapLoadingOverview)
@@ -613,6 +825,22 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
     }
 
 
+    override fun onResume() {
+        super.onResume()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                solToUsdcRate = fetchSolPriceInUSDC()
+                launch(Dispatchers.Main) {
+                }
+            } catch (e: Exception) {
+                launch(Dispatchers.Main) {
+                }
+            }
+        }
+
+        Log.d("MapActivity", "onResume called.")
+    }
 
     override fun onStart() {
         super.onStart()

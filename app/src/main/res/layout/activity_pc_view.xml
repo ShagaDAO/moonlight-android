@@ -94,9 +94,9 @@
         android:layout_centerHorizontal="true"
         android:layout_above="@+id/openWalletActivityButton"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textSize="30sp"/>
+        android:textSize="30sp"
+        android:visibility="gone"/>
 
-    <!-- Loading screen -->
     <!-- Loading screen -->
     <RelativeLayout
         android:id="@+id/loadingLayout"

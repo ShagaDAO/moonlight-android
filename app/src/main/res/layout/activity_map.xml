@@ -23,7 +23,8 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:layout_gravity="center"
-            android:elevation="6dp"/>
+            android:elevation="6dp"
+            app:backgroundTint="#00FFD8"/>
         <!-- ImageView on top of the Floating Action Button -->
         <ImageView
             android:layout_width="60dp"
@@ -35,6 +36,28 @@
     </FrameLayout>
 
 
+    <FrameLayout
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        app:layout_constraintBottom_toTopOf="@id/backButton"
+        app:layout_constraintStart_toStartOf="parent">
+        <!-- Floating Action Button in the background -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/refreshLatencyButton"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_gravity="center"
+            android:elevation="6dp"
+            app:backgroundTint="#00FFD8"/>
+        <!-- ImageView on top of the Floating Action Button -->
+        <ImageView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:elevation="7dp"
+            android:src="@drawable/latency_icon"
+            android:scaleType="centerCrop"/>
+    </FrameLayout>
 
 
     <TextView

@@ -388,6 +388,10 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         if (cancelRental != null) {
             String storedAuthority = SolanaPreferenceManager.getStoredAuthority();
             if (storedAuthority != null) {
+                // Set the button to invisible initially
+                cancelRental.setVisibility(View.GONE);
+
+                // Execute the AsyncTask to check rental status
                 new CheckRentalStatusTask(cancelRental).execute();
 
                 // Update: Single click listener to terminate rental

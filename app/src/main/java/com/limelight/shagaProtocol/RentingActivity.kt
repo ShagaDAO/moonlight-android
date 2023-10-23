@@ -55,6 +55,7 @@ class RentingActivity : AppCompatActivity() {
     private lateinit var proceedButton: Button
     private lateinit var rentalTimeSlider: Slider
     private lateinit var transactionStatusTextView: TextView
+    private var solToUsdcRate: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -198,6 +199,8 @@ class RentingActivity : AppCompatActivity() {
     private fun handleIntentExtras() {
         val sunshinePublicKey = intent.getStringExtra("sunshinePublicKey")
         val latency = intent.getLongExtra("latency", -1L)
+        solToUsdcRate = intent.getDoubleExtra("solToUsdcRate", 0.0)
+
 
         if (sunshinePublicKey != null && latency != -1L) {
             val affairData = AffairsDataHolder.affairsMap[sunshinePublicKey] ?: return
@@ -292,7 +295,8 @@ class RentingActivity : AppCompatActivity() {
 
             updateSliderLabels(rentalTimeSlider, value)
             // Update the UI
-            findViewById<TextView>(R.id.expectedRentCost).text = "Expected Rent Cost: ${String.format("%.2f", expectedRentCost)} SOL"
+            val expectedRentCostInUsdc = expectedRentCost * solToUsdcRate
+            findViewById<TextView>(R.id.expectedRentCost).text = "Expected Rent Cost: ${String.format("%.2f", expectedRentCost)} SOL (~${String.format("%.2f", expectedRentCostInUsdc)} $)"
             findViewById<TextView>(R.id.selectedRentTime).text = "Selected Time: ${selectedTimeHours}h ${remainingTimeMinutes}m"
         }
 

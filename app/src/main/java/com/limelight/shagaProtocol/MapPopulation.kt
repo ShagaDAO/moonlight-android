@@ -1,20 +1,23 @@
 package com.limelight.shagaProtocol
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
-import com.limelight.R
+import com.limelight.nvstream.http.NvApp
+import com.limelight.nvstream.http.NvHTTP
+import com.limelight.shagaProtocol.MapPopulation.NetworkUtils.fetchAppList
 import com.limelight.solanaWallet.SolanaApi
 import com.limelight.solanaWallet.SolanaPreferenceManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONException
-import org.json.JSONObject
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.StringReader
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -24,30 +27,35 @@ import java.util.concurrent.FutureTask
 import java.util.concurrent.Callable
 
 
-class MapPopulation {
+class MapPopulation() {
     data class Coordinates(val latitude: Double, val longitude: Double)
-    data class MarkerProperties( // just SolanaApi.AffairsData + Latency field & Coordinates
+    data class MarkerProperties( // just SolanaApi.AffairsData + Latency field & Games icons
         val ipAddress: String,
         val coordinates: Coordinates,
-        val latency: Long,
+        var latency: Long, // variable, because we can check the ping >1 time
         val gpuName: String,
         val cpuName: String,
         val sunshinePublicKey: String,
         val totalRamMb: UInt,
         val solPerHour: Double,
+        val usdcPerHour: Double,
         val affairState: String,
         val affairStartTime: ULong,
-        val affairTerminationTime: ULong
+        val affairTerminationTime: ULong,
+        val appList: List<NvApp>,
+        val gameIcons: List<Bitmap>
     )
 
     // Function to build marker properties, ip & latency are calculated in MapUtils.kt
-    suspend fun buildMarkerProperties(context: Context, affair: DecodedAffairsData): Result<MarkerProperties> {
-        return MarkerUtils.buildMarkerProperties(context, affair)
+    fun buildMarkerProperties(context: Context, affair: DecodedAffairsData, rate: Double): Result<MarkerProperties> {
+        return MarkerUtils.buildMarkerProperties(context, affair, rate)
     }
 
     object NetworkUtils {
         // Create a shared OkHttpClient instance
         private val client = OkHttpClient()
+        private val defaultPort = NvHTTP.getDefaultHttpsPort()
+
 
         // Moved outside the function as a private const
         private const val IP_PATTERN = "^(25[0-5]|2[0-4][0-9]|[0-1]?[0-9][0-9]?)\\." +
@@ -120,13 +128,92 @@ class MapPopulation {
         }
 
 
+        fun fetchAppList(ipAddress: String): List<NvApp> {
+
+            val url = "https://$ipAddress:$defaultPort/applist"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val appListRaw = response.body?.string() ?: ""
+                Log.d("shagaMapActivityPopulation", "Fetched app list successfully.")
+                return parseAppList(appListRaw)
+            } catch (e: Exception) {
+                Log.e("shagaMapActivityPopulation", "Failed to fetch app list.", e)
+                e.printStackTrace()
+                return emptyList()
+            }
+        }
+
+        private fun parseAppList(xml: String): List<NvApp> {
+            val factory = XmlPullParserFactory.newInstance()
+            val parser = factory.newPullParser()
+            parser.setInput(StringReader(xml))
+
+            val apps = mutableListOf<NvApp>()
+            var eventType = parser.eventType
+            var currentApp: NvApp? = null
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        when (parser.name) {
+                            "App" -> currentApp = NvApp()
+                            "IsHdrSupported" -> currentApp?.setHdrSupported(parser.nextText().toBoolean())
+                            "AppTitle" -> currentApp?.setAppName(parser.nextText())
+                            "ID" -> currentApp?.setAppId(parser.nextText())
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == "App") {
+                            currentApp?.let { apps.add(it) }
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+            return apps
+        }
+
+        fun fetchGameIcon(ipAddress: String, appId: String): InputStream? {
+            val url = "https://$ipAddress:$defaultPort/appasset?appid=$appId&AssetType=2&AssetIdx=0"
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                return response.body?.byteStream()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return null
+            }
+        }
+
     }
 
 
     object MarkerUtils {
 
+        fun retryLatencyCheck(ipAddress: String, timeout: Long): Result<Long> {
+            var latencyResult: Result<Long>  // Declare the latencyResult variable
+            var retryCount = 0  // Counter for retry attempts
 
-        suspend fun buildMarkerProperties(context: Context, affair: DecodedAffairsData): Result<MarkerProperties> {
+            // Loop to retry the latency check
+            do {
+                latencyResult = NetworkUtils.pingIpAddress(ipAddress, timeout)
+                retryCount++
+                Log.d("retryLatencyCheck", "Latency Result on attempt $retryCount: $latencyResult")
+            } while (!latencyResult.isSuccess && retryCount < 3)  // Retry up to 3 times if not successful
+
+            return latencyResult
+        }
+
+        fun buildMarkerProperties(context: Context, affair: DecodedAffairsData, rate: Double): Result<MarkerProperties> {
             // Use already decoded ipAddress
             val ipAddressString = affair.ipAddress
 
@@ -138,11 +225,8 @@ class MapPopulation {
 
             val coordinates = Coordinates(latitude, longitude)  // Use your Coordinates class here
 
-
             val timeout = SolanaPreferenceManager.getLatencySliderValue(context).toLong()
-
-            val latencyResult = NetworkUtils.pingIpAddress(ipAddressString, timeout)
-            Log.d("buildMarkerProperties", "Latency Result: $latencyResult")
+            val latencyResult = retryLatencyCheck(ipAddressString, timeout)
 
             if (latencyResult.isSuccess) {
                 // Use already decoded cpuName and gpuName
@@ -160,7 +244,16 @@ class MapPopulation {
                 }
 
                 val solPerHourInSol = affair.solPerHour.toDouble()
+                val usdcPerHour = solPerHourInSol * rate // this is usdc/sol from coingecko
+                val roundedUsdcPerHour = String.format("%.2f", usdcPerHour).toDouble()
 
+
+                val appList = NetworkUtils.fetchAppList(ipAddressString)
+                val gameIcons: List<Bitmap> = appList.mapNotNull { app ->
+                    NetworkUtils.fetchGameIcon(ipAddressString, app.appId.toString())?.use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
+                    }
+                }
 
                 // Now build MarkerProperties
                 val markerProperties = MarkerProperties(
@@ -172,9 +265,12 @@ class MapPopulation {
                     sunshinePublicKey = authorityString,
                     totalRamMb = affair.totalRamMb,
                     solPerHour = solPerHourInSol,
+                    usdcPerHour = roundedUsdcPerHour,
                     affairState = affairStateString,
                     affairStartTime = affair.activeRentalStartTime,
-                    affairTerminationTime = affair.affairTerminationTime
+                    affairTerminationTime = affair.affairTerminationTime,
+                    appList = appList,
+                    gameIcons = gameIcons
                 )
 
                 Log.d("buildMarkerProperties", "Created MarkerProperties: $markerProperties") // Log the created MarkerProperties object
