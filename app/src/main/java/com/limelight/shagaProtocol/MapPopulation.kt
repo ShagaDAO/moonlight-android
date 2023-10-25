@@ -54,7 +54,7 @@ class MapPopulation() {
     object NetworkUtils {
         // Create a shared OkHttpClient instance
         private val client = OkHttpClient()
-        private val defaultPort = NvHTTP.getDefaultHttpsPort()
+        private val httpDefaultPort = NvHTTP.getDefaultHttpPort()
 
 
         // Moved outside the function as a private const
@@ -130,7 +130,7 @@ class MapPopulation() {
 
         fun fetchAppList(ipAddress: String): List<NvApp> {
 
-            val url = "https://$ipAddress:$defaultPort/applist"
+            val url = "http://$ipAddress:$httpDefaultPort/shagaApplist"
             val request = Request.Builder()
                 .url(url)
                 .get()
@@ -179,7 +179,7 @@ class MapPopulation() {
         }
 
         fun fetchGameIcon(ipAddress: String, appId: String): InputStream? {
-            val url = "https://$ipAddress:$defaultPort/appasset?appid=$appId&AssetType=2&AssetIdx=0"
+            val url = "http://$ipAddress:$httpDefaultPort/shagaAppasset?appid=$appId&AssetType=2&AssetIdx=0"
             val request = Request.Builder()
                 .url(url)
                 .get()

@@ -65,11 +65,13 @@ public class NvHTTP {
     private PairingManager pm;
 
     private static final int DEFAULT_HTTPS_PORT = 47984;
-
     public static int getDefaultHttpsPort() {
         return DEFAULT_HTTPS_PORT;
     }
     public static final int DEFAULT_HTTP_PORT = 47989;
+    public static int getDefaultHttpPort() {
+        return DEFAULT_HTTP_PORT;
+    }
     public static final int SHORT_CONNECTION_TIMEOUT = 10000; // was 3000, for Shaga now it's 10000
     public static final int LONG_CONNECTION_TIMEOUT = 15000; // was 5000, for Shaga now it's 15000
     public static final int READ_TIMEOUT = 21000; // was 7000, for Shaga now it's 21000

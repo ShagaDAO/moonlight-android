@@ -26,6 +26,6 @@ class GameIconAdapter(private val gameIcons: List<Bitmap>) : RecyclerView.Adapte
     }
 
     override fun getItemCount(): Int {
-        return Math.min(4, gameIcons.size)  // Only show a maximum of 4 items
+        return gameIcons.size  // Only show a maximum of 4 items
     }
 }
