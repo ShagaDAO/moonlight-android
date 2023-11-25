@@ -8,12 +8,12 @@ import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findLe
 import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findRentAccount
 import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findRentEscrow
 import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findRentalThreadId
+import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findShagaState
 import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findThreadAuthority
 import com.limelight.shagaProtocol.ShagaTransactions.ProgramAddressHelper.findVault
 import com.limelight.solanaWallet.SolanaApi
 import com.limelight.solanaWallet.SolanaApi.solana
 import com.limelight.solanaWallet.SolanaPreferenceManager
-import com.solana.api.AccountInfo
 import com.solana.api.AccountInfoSerializer
 import com.solana.api.getAccountInfo
 import com.solana.core.AccountMeta
@@ -23,12 +23,7 @@ import com.solana.networking.serialization.format.Borsh
 import com.solana.networking.serialization.serializers.base64.BorshAsBase64JsonArraySerializer
 import com.solana.networking.serialization.serializers.solana.AnchorAccountSerializer
 import com.solana.networking.serialization.serializers.solana.AnchorInstructionSerializer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 
 class ShagaTransactions {
@@ -40,7 +35,8 @@ class ShagaTransactions {
         const val SEED_RENTAL = "rental"
         const val SEED_THREAD = "thread"
         const val SEED_AUTHORITY_THREAD = "authority_thread"
-        const val PROGRAM_ID_STRING = "9SwYZxTQUYruFSHYeTqrtB5pTtuGJEGksh7ufpNS1YK5"
+        const val SEED_SHAGA_STATE = "shaga_state"
+        const val PROGRAM_ID_STRING = "HQeckNoXMczA5AtgKKWmLzQPT4Wcm6YBjeHCrRp2XLF1"
         val PROGRAM_ID: PublicKey = PublicKey(PROGRAM_ID_STRING)
         const val CLOCKWORK_ID_STRING = "CLoCKyJ6DXBJqqu2VWx9RLbgnwwR6BMHHuyasVmfMzBh"
         val CLOCKWORK_ID: PublicKey = PublicKey(CLOCKWORK_ID_STRING)
@@ -107,6 +103,7 @@ class ShagaTransactions {
         args: SolanaApi.StartRentalInstructionArgs
     ): TransactionInstruction {
         // Use the helper functions to get the public keys
+        val (shagaState, _) = findShagaState(PROGRAM_ID)
         val (affair, _) = findAffair(authority, PROGRAM_ID)
         val (lender, _) = findLender(authority, PROGRAM_ID)
         val (affairsList, _) = findAffairList(PROGRAM_ID)
@@ -119,6 +116,7 @@ class ShagaTransactions {
         // Initialize the keys list for TransactionInstruction
         val keys = mutableListOf<AccountMeta>()
         keys.add(AccountMeta(client, true, true))
+        keys.add(AccountMeta(shagaState, false, true))
         keys.add(AccountMeta(lender, false, true))
         keys.add(AccountMeta(affair, false, true))
         keys.add(AccountMeta(affairsList, false, true))
@@ -135,7 +133,7 @@ class ShagaTransactions {
         }
         val data = Borsh.encodeToByteArray(
             AnchorInstructionSerializer("start_rental"),
-            args.rentalTerminationTime
+            args
         )
 
         return TransactionInstruction(
@@ -151,6 +149,7 @@ class ShagaTransactions {
         client: PublicKey
     ): TransactionInstruction {
         // Fetch the necessary public keys for the accounts involved
+        val (shagaState, _) = findShagaState(PROGRAM_ID)
         val (affair, _) = findAffair(authority, PROGRAM_ID)
         val (lender, _) = findLender(authority, PROGRAM_ID)
         val (affairsList, _) = findAffairList(PROGRAM_ID)
@@ -163,6 +162,7 @@ class ShagaTransactions {
         // Create a list for the AccountMeta objects
         val keys = mutableListOf<AccountMeta>()
         keys.add(AccountMeta(client, true,true)) // signer
+        keys.add(AccountMeta(shagaState, false, true))
         keys.add(AccountMeta(client, false, true))
         keys.add(AccountMeta(threadAuthority, false, false))
         keys.add(AccountMeta(lender, false, true))
@@ -224,6 +224,10 @@ class ShagaTransactions {
 
         fun findAffair(authority: PublicKey, programId: PublicKey): Pair<PublicKey, Int> {
             return findProgramAddressSync(listOf(SEED_AFFAIR.toByteArray(), authority.toByteArray()), programId)
+        }
+
+        fun findShagaState(programId: PublicKey): Pair<PublicKey, Int> {
+            return findProgramAddressSync(listOf(SEED_SHAGA_STATE.toByteArray()), programId)
         }
 
         fun findLender(authority: PublicKey, programId: PublicKey): Pair<PublicKey, Int> {

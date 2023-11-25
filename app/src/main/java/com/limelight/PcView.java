@@ -1,31 +1,54 @@
 package com.limelight;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.net.UnknownHostException;
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.Service;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.res.Configuration;
+import android.opengl.GLSurfaceView;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.preference.PreferenceManager;
+import android.util.Log;
+import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.AbsListView;
+import android.widget.AdapterView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.crypto.AndroidCryptoProvider;
-
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
-
 import com.limelight.grid.PcGridAdapter;
 import com.limelight.grid.assets.DiskAssetLoader;
-
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.http.PairingManager.PairState;
 import com.limelight.nvstream.wol.WakeOnLanSender;
-
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.preferences.GlPreferences;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.StreamSettings;
-
+import com.limelight.shaga.ui.main.MainActivity;
 import com.limelight.shagaProtocol.MapActivity;
 import com.limelight.shagaProtocol.RentingActivity;
 import com.limelight.shagaProtocol.ShagaTransactions;
@@ -33,60 +56,22 @@ import com.limelight.solanaWallet.SolanaPreferenceManager;
 import com.limelight.solanaWallet.WalletActivity;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
-
 import com.limelight.utils.Dialog;
 import com.limelight.utils.HelpLauncher;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
 import com.limelight.utils.UiHelper;
 
-import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.Service;
-
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.content.res.Configuration;
-import android.opengl.GLSurfaceView;
-
-import android.os.AsyncTask;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-
-import android.preference.PreferenceManager;
-
-import android.util.Log;
-import android.view.ContextMenu;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ContextMenu.ContextMenuInfo;
-import android.view.View.OnClickListener;
-
-import android.widget.AbsListView;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.Button;
-import android.widget.ImageButton;
-import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
-import android.widget.Toast;
-import android.widget.AdapterView.AdapterContextMenuInfo;
-
 import org.libsodium.jni.NaCl;
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.net.UnknownHostException;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
-
-
-import com.solana.core.Account;
-import com.solana.core.PublicKey;
-import com.limelight.solanaWallet.EncryptionHelper;
-import android.widget.TextView;
 
 public class PcView extends Activity implements AdapterFragmentCallbacks {
     private ProgressBar loadingProgressBar;
@@ -249,6 +234,8 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
         inForeground = true;
 
         instance = this; // added for Shaga PairingActivity to call publicDoPairShaga
+
+        startActivity(new Intent(this, MainActivity.class));
 
         // Create a GLSurfaceView to fetch GLRenderer unless we have
         // a cached result already.

@@ -118,6 +118,7 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.limelight.PcView" />
         </activity>
+        <activity android:name=".shaga.ui.main.MainActivity"/>
         <activity
             android:name=".preferences.StreamSettings"
             android:resizeableActivity="true"
