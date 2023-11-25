@@ -2,7 +2,6 @@ package com.limelight.shagaProtocol
 
  import android.Manifest
  import android.annotation.SuppressLint
- import android.content.Context
  import android.content.Intent
  import android.content.pm.PackageManager
  import android.graphics.Bitmap
@@ -11,10 +10,8 @@ package com.limelight.shagaProtocol
  import android.graphics.Color
  import android.graphics.Paint
  import android.graphics.Rect
- import android.graphics.Typeface
  import android.os.Build
  import android.os.Bundle
- import android.util.DisplayMetrics
  import android.util.Log
  import android.view.LayoutInflater
  import android.view.MotionEvent
@@ -23,25 +20,29 @@ package com.limelight.shagaProtocol
  import android.view.ViewTreeObserver
  import android.widget.Button
  import android.widget.FrameLayout
- import android.widget.ImageView
- import android.widget.LinearLayout
  import android.widget.TextView
  import android.widget.Toast
  import androidx.annotation.RequiresApi
  import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+ import androidx.core.app.ActivityCompat
+ import androidx.lifecycle.lifecycleScope
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import androidx.recyclerview.widget.RecyclerView
+ import com.google.android.gms.location.FusedLocationProviderClient
+ import com.google.android.gms.location.LocationServices
  import com.google.android.material.floatingactionbutton.FloatingActionButton
+ import com.google.android.material.slider.Slider
  import com.limelight.R
-import com.limelight.solanaWallet.SolanaApi
+ import com.limelight.solanaWallet.SolanaApi
+ import com.limelight.solanaWallet.SolanaApi.solana
+ import com.limelight.solanaWallet.SolanaPreferenceManager
+ import com.limelight.solanaWallet.WalletActivity
  import com.mapbox.geojson.Point
-import com.mapbox.maps.MapView
-import com.mapbox.maps.MapboxMap
-import com.mapbox.maps.QueryFeaturesCallback
-import com.mapbox.maps.RenderedQueryGeometry
-import com.mapbox.maps.RenderedQueryOptions
-import com.mapbox.maps.Style
+ import com.mapbox.maps.CameraOptions
+ import com.mapbox.maps.EdgeInsets
+ import com.mapbox.maps.MapView
+ import com.mapbox.maps.MapboxMap
+ import com.mapbox.maps.Style
  import com.mapbox.maps.ViewAnnotationOptions
  import com.mapbox.maps.plugin.annotation.annotations
  import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
@@ -51,20 +52,6 @@ import com.mapbox.maps.Style
  import com.mapbox.maps.plugin.gestures.OnMapClickListener
  import com.mapbox.maps.plugin.locationcomponent.location
  import com.mapbox.maps.viewannotation.ViewAnnotationManager
- import java.lang.Math.sqrt
- import java.text.SimpleDateFormat
- import java.util.Date
- import java.util.Locale
- import kotlin.math.pow
- import androidx.lifecycle.lifecycleScope
- import androidx.recyclerview.widget.LinearLayoutManager
- import androidx.recyclerview.widget.RecyclerView
- import kotlinx.coroutines.launch
- import com.mapbox.maps.CameraOptions
- import com.mapbox.maps.EdgeInsets
- import org.bitcoinj.core.Base58
- import com.limelight.solanaWallet.SolanaApi.solana
- import com.limelight.solanaWallet.WalletActivity
  import com.solana.api.AccountInfo
  import com.solana.api.AccountInfoSerializer
  import com.solana.api.getAccountInfo
@@ -73,19 +60,23 @@ import com.mapbox.maps.Style
  import com.solana.networking.serialization.serializers.base64.BorshAsBase64JsonArraySerializer
  import com.solana.networking.serialization.serializers.solana.AnchorAccountSerializer
  import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Deferred
+ import kotlinx.coroutines.Dispatchers
  import kotlinx.coroutines.async
  import kotlinx.coroutines.awaitAll
- import kotlinx.coroutines.Dispatchers
- import com.google.android.material.slider.Slider
- import com.limelight.solanaWallet.SolanaPreferenceManager
- import kotlinx.coroutines.Deferred
- import kotlinx.coroutines.runBlocking
+ import kotlinx.coroutines.launch
  import kotlinx.coroutines.withContext
+ import org.bitcoinj.core.Base58
  import org.json.JSONObject
  import java.io.BufferedReader
  import java.io.InputStreamReader
+ import java.lang.Math.sqrt
  import java.net.HttpURLConnection
  import java.net.URL
+ import java.text.SimpleDateFormat
+ import java.util.Date
+ import java.util.Locale
+ import kotlin.math.pow
 
 
 /* simplified flow:
@@ -708,6 +699,7 @@ class MapActivity : AppCompatActivity(), OnMapClickListener {
 
                                                     // Create a new DecodedAffairsData object with decoded and other values
                                                     val decodedData = DecodedAffairsData(
+                                                        authorityKey = authorityKey,
                                                         authority = nonNullData.authority,
                                                         client = nonNullData.client,
                                                         rental = nonNullData.rental,

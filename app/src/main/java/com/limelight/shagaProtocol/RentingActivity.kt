@@ -9,7 +9,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.slider.Slider
 import com.limelight.R
-import com.limelight.solanaWallet.ShagaHotAccount
 import com.limelight.solanaWallet.SolanaApi
 import com.limelight.solanaWallet.SolanaPreferenceManager
 import com.limelight.solanaWallet.WalletInitializer
@@ -33,6 +32,7 @@ object AffairsDataHolder {
 }
 
 data class DecodedAffairsData(
+    val authorityKey: String,
     val authority: PublicKey,
     val client: PublicKey,
     val rental: PublicKey?,
@@ -322,7 +322,10 @@ class RentingActivity : AppCompatActivity() {
                 val secretKey: ByteArray = clientAccount.obtainSecretKey()
                 val intermediateHotAccount: HotAccount = HotAccount(secretKey)
                 // Step 4
-                val rentalArgs = SolanaApi.StartRentalInstructionArgs(rentalTerminationTime = rentalTerminationTimeSeconds)
+                val rentalArgs = SolanaApi.StartRentalInstructionArgs(
+                    rentalTerminationTime = rentalTerminationTimeSeconds,
+                    privatePairHashCode = null // this part is not used anymore
+                )
                 // Step 5
                 val txInstruction = shagaTransactions.startRental(
                     authority = data.authority,

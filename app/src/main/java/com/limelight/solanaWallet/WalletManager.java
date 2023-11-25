@@ -4,9 +4,12 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.widget.TextView;
+
 import com.limelight.R;
 import com.solana.Solana;
 import com.solana.core.PublicKey;
+
+import javax.annotation.Nullable;
 
 public class WalletManager implements BalanceCallback {
 
@@ -19,7 +22,9 @@ public class WalletManager implements BalanceCallback {
     private Context context;
     private BalanceUpdateCallback balanceUpdateCallback;
     private SharedPreferences sharedPreferences;
+    @Nullable
     private static TextView balanceTextView;
+    @Nullable
     private static TextView walletPublicKeyTextView;
     private Double currentBalance;
 
@@ -32,6 +37,10 @@ public class WalletManager implements BalanceCallback {
 
     public interface BalanceUpdateCallback {
         void onBalanceUpdate(Double balance);
+    }
+
+    public void setup(Context context, BalanceUpdateCallback callback) {
+        setup(context, callback, null, null);
     }
 
     public void setup(Context context, BalanceUpdateCallback callback, TextView balanceTextView, TextView walletPublicKeyTextView) {
@@ -50,33 +59,41 @@ public class WalletManager implements BalanceCallback {
 
     public void updateBalanceTextView(final String balanceText) {
         ((Activity) context).runOnUiThread(() -> {
-            balanceTextView.setText(balanceText);
+            if (balanceTextView != null) {
+                balanceTextView.setText(balanceText);
+            }
         });
     }
 
     public static void initializeUIWithPlaceholderBalance() {
-        balanceTextView.setText("Loading balance...");
-        walletPublicKeyTextView.setText("Loading public key...");
+        if (balanceTextView != null) {
+            balanceTextView.setText("Loading balance...");
+        }
+        if (walletPublicKeyTextView != null) {
+            walletPublicKeyTextView.setText("Loading public key...");
+        }
     }
 
     public void updateUIWithBalance() {
         Double currentBalance = getCurrentBalance();
         PublicKey rawPublicKey = SolanaPreferenceManager.getStoredPublicKey();
-        String publicKey = rawPublicKey.toString();
+        String publicKey = rawPublicKey != null ? rawPublicKey.toString() : null;
 
         ((Activity) context).runOnUiThread(() -> {
-            if (publicKey != null && !publicKey.isEmpty()) {
-                walletPublicKeyTextView.setText(publicKey);
-            } else {
-                walletPublicKeyTextView.setText(R.string.pubkey_fetch_error);
-            }
+            if (walletPublicKeyTextView != null && balanceTextView != null) {
+                if (publicKey != null && !publicKey.isEmpty()) {
+                    walletPublicKeyTextView.setText(publicKey);
+                } else {
+                    walletPublicKeyTextView.setText(R.string.pubkey_fetch_error);
+                }
 
-            if (currentBalance != null && currentBalance > 0) {
-                String balanceString = context.getString(R.string.balance_format, currentBalance.floatValue());
-                balanceTextView.setText(balanceString);
-            } else {
-                String noBalanceMessage = context.getString(R.string.no_balance_message);
-                balanceTextView.setText(noBalanceMessage);
+                if (currentBalance != null && currentBalance > 0) {
+                    String balanceString = context.getString(R.string.balance_format, currentBalance.floatValue());
+                    balanceTextView.setText(balanceString);
+                } else {
+                    String noBalanceMessage = context.getString(R.string.no_balance_message);
+                    balanceTextView.setText(noBalanceMessage);
+                }
             }
         });
     }
@@ -127,6 +144,10 @@ public class WalletManager implements BalanceCallback {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putFloat("user_balance", balanceInSol.floatValue());
             editor.apply();
+
+            if (balanceUpdateCallback != null) {
+                balanceUpdateCallback.onBalanceUpdate(balanceInSol);
+            }
 
             updateBalanceTextView(balanceString);
             WalletManager.getInstance().setCurrentBalance(balanceInSol);

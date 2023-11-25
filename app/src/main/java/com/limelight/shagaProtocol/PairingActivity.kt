@@ -13,25 +13,25 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.limelight.AppView
+import com.limelight.PcView
 import com.limelight.R
+import com.limelight.binding.PlatformBinding
 import com.limelight.computers.ComputerManagerService
 import com.limelight.nvstream.http.ComputerDetails
 import com.limelight.nvstream.http.NvHTTP
+import com.limelight.nvstream.http.PairingManager
 import com.limelight.nvstream.jni.MoonBridge
+import com.limelight.solanaWallet.EncryptionHelper
 import com.limelight.utils.Dialog
 import com.limelight.utils.ServerHelper
 import com.limelight.utils.SpinnerDialog
-import java.net.Inet4Address
-import java.net.InetAddress
-import java.net.NetworkInterface
-import com.limelight.PcView
-import com.limelight.binding.PlatformBinding
-import com.limelight.nvstream.http.PairingManager
-import com.limelight.solanaWallet.EncryptionHelper
 import com.solana.core.PublicKey
 import okio.FileNotFoundException
 import okio.IOException
 import org.xmlpull.v1.XmlPullParserException
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.URI
 import java.net.URISyntaxException
 import java.net.UnknownHostException
@@ -531,4 +531,13 @@ class PairingActivity : AppCompatActivity() {
     }
 
 
+    companion object {
+        fun start(context: Context, clientString: String, data: DecodedAffairsData) {
+            val intent = Intent(context, PairingActivity::class.java)
+            intent.putExtra("clientAccount", clientString)
+            intent.putExtra("ipAddress", data.ipAddress)
+            intent.putExtra("authority", data.authority.toString())
+            context.startActivity(intent)
+        }
+    }
 }

@@ -1,30 +1,18 @@
 package com.limelight.solanaWallet
 
-import android.os.Build
-import androidx.annotation.RequiresApi
+import com.solana.Solana
+import com.solana.api.getBalance
+import com.solana.api.getRecentBlockhash
 import com.solana.core.PublicKey
+import com.solana.networking.HttpNetworkingRouter
+import com.solana.networking.RPCEndpoint
+import com.solana.networking.serialization.serializers.solana.PublicKeyAs32ByteSerializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import com.solana.api.getBalance
-import com.solana.Solana
-import com.solana.api.Api
-import kotlinx.serialization.*
-import kotlinx.serialization.json.Json
-import java.util.*
-import com.solana.networking.HttpNetworkingRouter
-import com.solana.networking.RPCEndpoint
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import com.solana.api.getMultipleAccounts
-import com.solana.networking.serialization.serializers.solana.PublicKeyAs32ByteSerializer
-import com.solana.api.getRecentBlockhash
-import kotlinx.coroutines.launch
-import com.solana.api.getRecentBlockhash
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.Serializable
 import kotlin.coroutines.resume
-
 
 
 object SolanaApi {
@@ -43,7 +31,8 @@ object SolanaApi {
 
     @Serializable
     data class StartRentalInstructionArgs(
-        val rentalTerminationTime: ULong
+        val rentalTerminationTime: ULong,
+        val privatePairHashCode: String?
     )
 
     @Serializable

@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import com.limelight.nvstream.http.NvApp
 import com.limelight.nvstream.http.NvHTTP
-import com.limelight.shagaProtocol.MapPopulation.NetworkUtils.fetchAppList
 import com.limelight.solanaWallet.SolanaApi
 import com.limelight.solanaWallet.SolanaPreferenceManager
 import okhttp3.OkHttpClient
@@ -14,17 +13,16 @@ import okhttp3.Request
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
-import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.StringReader
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.regex.Pattern
 import kotlin.math.roundToLong
-import java.util.concurrent.FutureTask
-import java.util.concurrent.Callable
 
 
 class MapPopulation() {
@@ -178,8 +176,12 @@ class MapPopulation() {
             return apps
         }
 
-        fun fetchGameIcon(ipAddress: String, appId: String): InputStream? {
-            val url = "http://$ipAddress:$httpDefaultPort/shagaAppasset?appid=$appId&AssetType=2&AssetIdx=0"
+        fun buildGameIconUrl(ipAddress: String, appId: Int): String {
+            return "http://$ipAddress:$httpDefaultPort/shagaAppasset?appid=$appId&AssetType=2&AssetIdx=0"
+        }
+
+        fun fetchGameIcon(ipAddress: String, appId: Int): InputStream? {
+            val url = buildGameIconUrl(ipAddress, appId)
             val request = Request.Builder()
                 .url(url)
                 .get()
@@ -250,7 +252,7 @@ class MapPopulation() {
 
                 val appList = NetworkUtils.fetchAppList(ipAddressString)
                 val gameIcons: List<Bitmap> = appList.mapNotNull { app ->
-                    NetworkUtils.fetchGameIcon(ipAddressString, app.appId.toString())?.use { inputStream ->
+                    NetworkUtils.fetchGameIcon(ipAddressString, app.appId)?.use { inputStream ->
                         BitmapFactory.decodeStream(inputStream)
                     }
                 }
