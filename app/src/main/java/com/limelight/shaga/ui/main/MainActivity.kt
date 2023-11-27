@@ -24,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
     private fun Content(state: HomeState) {
         var isPairingDialogVisible by remember { mutableStateOf(false) }
         var pairingString by remember { mutableStateOf<String?>(null) }
+        var sessionSettingsDialogKey by remember { mutableIntStateOf(0) }
 
         Scaffold(
             topBar = {
@@ -93,14 +95,17 @@ class MainActivity : ComponentActivity() {
 
         if (isPairingDialogVisible) {
             PairingStringDialog(
-                onConfirmClick = { pairingString = it },
+                onConfirmClick = {
+                    sessionSettingsDialogKey++
+                    pairingString = it
+                },
                 onDismissRequest = { isPairingDialogVisible = false }
             )
         }
 
         if (pairingString != null) {
             SessionSettingsDialog(
-                viewModel = viewModel(key = pairingString) {
+                viewModel = viewModel(key = sessionSettingsDialogKey.toString()) {
                     SessionSettingsViewModel(pairingString!!)
                 },
                 onDismissRequest = { pairingString = null }

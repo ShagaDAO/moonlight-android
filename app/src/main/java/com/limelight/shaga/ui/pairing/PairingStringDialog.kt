@@ -48,6 +48,7 @@ fun PairingStringDialog(onConfirmClick: (String) -> Unit, onDismissRequest: () -
                     value = it
                     if (isPasteEvent) {
                         onConfirmClick(value)
+                        onDismissRequest()
                     }
                 },
                 shape = RoundedCornerShape(28.dp),
