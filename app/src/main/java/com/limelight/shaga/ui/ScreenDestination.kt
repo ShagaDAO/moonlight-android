@@ -2,6 +2,7 @@ package com.limelight.shaga.ui
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 
@@ -12,11 +13,11 @@ abstract class ScreenDestination {
         get() = emptyList()
 
     fun register(builder: NavGraphBuilder) {
-        builder.composable(route, arguments) {
-            Content()
+        builder.composable(route, arguments) { navBackStackEntry ->
+            Content(navBackStackEntry)
         }
     }
 
     @Composable
-    abstract fun Content()
+    abstract fun Content(navBackStackEntry: NavBackStackEntry)
 }

@@ -431,7 +431,7 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
 
         @Override
         protected Boolean doInBackground(Void... params) {
-            return ShagaTransactions.TransactionsObject.checkRentalStatus();
+            return ShagaTransactions.TransactionsObject.checkRentalStatus() != null;
         }
 
         @Override

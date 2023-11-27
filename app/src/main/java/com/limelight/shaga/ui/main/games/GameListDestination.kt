@@ -1,6 +1,7 @@
 package com.limelight.shaga.ui.main.games
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavBackStackEntry
 import com.limelight.shaga.ui.ScreenDestination
 
 object GameListDestination : ScreenDestination() {
@@ -8,7 +9,7 @@ object GameListDestination : ScreenDestination() {
         get() = "game_list"
 
     @Composable
-    override fun Content() {
+    override fun Content(navBackStackEntry: NavBackStackEntry) {
         GameListScreen()
     }
 }

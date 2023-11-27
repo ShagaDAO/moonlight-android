@@ -8,7 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.limelight.shaga.ui.connection.ConnectionScreenDestination
 import com.limelight.shaga.ui.kit.ShagaTheme
-import com.limelight.shagaProtocol.DecodedAffairsData
 
 class MainActivity : ComponentActivity() {
 
@@ -27,8 +26,10 @@ class MainActivity : ComponentActivity() {
         val navController = rememberNavController()
 
         val mainScreenDestination = MainScreenDestination(
-            onOpenPairing = { clientString: String, data: DecodedAffairsData ->
-                navController.navigate(ConnectionScreenDestination.route)
+            onOpenPairing = { clientString: String, ipAddress, authority ->
+                navController.navigate(
+                    ConnectionScreenDestination.navigationRoute(clientString, ipAddress, authority)
+                )
             }
         )
 
