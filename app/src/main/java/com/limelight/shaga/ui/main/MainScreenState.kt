@@ -1,5 +1,5 @@
 package com.limelight.shaga.ui.main
 
-data class HomeState(
+data class MainScreenState(
     val hasActiveRental: Boolean?
 )

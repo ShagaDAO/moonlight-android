@@ -22,11 +22,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.limelight.shaga.ui.kit.ShagaColors
 import com.limelight.shaga.ui.kit.ShagaDialog
-import com.limelight.shagaProtocol.PairingActivity
+import com.limelight.shagaProtocol.DecodedAffairsData
 
 
 @Composable
-fun SessionSettingsDialog(viewModel: SessionSettingsViewModel, onDismissRequest: () -> Unit) {
+fun SessionSettingsDialog(
+    viewModel: SessionSettingsViewModel,
+    onDismissRequest: () -> Unit,
+    onOpenPairing: (clientString: String, data: DecodedAffairsData) -> Unit
+) {
     val collectedUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uiState = collectedUiState
 
@@ -39,8 +43,9 @@ fun SessionSettingsDialog(viewModel: SessionSettingsViewModel, onDismissRequest:
                 SessionSettingsUiEvent.PaymentError -> {
                     Toast.makeText(context, "Transaction failed", Toast.LENGTH_LONG).show()
                 }
+
                 is SessionSettingsUiEvent.PaymentSuccess -> {
-                    PairingActivity.start(context, event.clientString, event.data)
+                    onOpenPairing(event.clientString, event.data)
                 }
             }
         }

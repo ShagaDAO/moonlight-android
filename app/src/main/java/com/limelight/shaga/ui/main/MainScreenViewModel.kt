@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class HomeViewModel : ViewModel() {
+class MainScreenViewModel : ViewModel() {
     private val _hasActiveRental = MutableStateFlow<Boolean?>(null)
 
-    val uiState = _hasActiveRental.map { hasActive -> HomeState(hasActive) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, HomeState(null))
+    val uiState = _hasActiveRental.map { hasActive -> MainScreenState(hasActive) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, MainScreenState(null))
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
