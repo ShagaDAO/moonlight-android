@@ -43,7 +43,13 @@ fun PairingStringDialog(onConfirmClick: (String) -> Unit, onDismissRequest: () -
             )
             OutlinedTextField(
                 value = value,
-                onValueChange = { value = it },
+                onValueChange = {
+                    val isPasteEvent = it.length - value.length > 10
+                    value = it
+                    if (isPasteEvent) {
+                        onConfirmClick(value)
+                    }
+                },
                 shape = RoundedCornerShape(28.dp),
                 placeholder = {
                     Text(
@@ -75,7 +81,7 @@ fun PairingStringDialog(onConfirmClick: (String) -> Unit, onDismissRequest: () -
                     focusedTextColor = ShagaColors.TextSecondary2,
                     unfocusedTextColor = ShagaColors.TextSecondary2
                 ),
-                maxLines = 1,
+                singleLine = true,
                 modifier = Modifier.padding(top = 22.dp)
             )
             Row(Modifier.padding(top = 9.dp)) {
