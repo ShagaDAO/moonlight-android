@@ -39,6 +39,7 @@ object ShagaColors {
     val Accent2 = Color(0xFF00FF8D)
     val Accent3 = Color(0xFF0D6B38)
     val Background = Color(0xFF181818)
+    val Background2 = Color(0xCC0C0C0C)
     val TopBarBackground = Color(0xFF131314)
     val TopBarDivider = Color(0xFF1D1F1F)
     val ButtonOutline = Color(0x26FFFFFF)

@@ -1,4 +1,4 @@
-package com.limelight.shaga.ui.main
+package com.limelight.shaga.ui.main.home
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image

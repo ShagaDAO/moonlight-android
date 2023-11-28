@@ -7,11 +7,12 @@ import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.limelight.AppView
 import com.limelight.PcView
 import com.limelight.R
@@ -21,6 +22,9 @@ import com.limelight.nvstream.http.ComputerDetails
 import com.limelight.nvstream.http.NvHTTP
 import com.limelight.nvstream.http.PairingManager
 import com.limelight.nvstream.jni.MoonBridge
+import com.limelight.shaga.ui.connection.ConnectionScreen
+import com.limelight.shaga.ui.connection.ConnectionScreenViewModel
+import com.limelight.shaga.ui.kit.ShagaTheme
 import com.limelight.solanaWallet.EncryptionHelper
 import com.limelight.utils.Dialog
 import com.limelight.utils.ServerHelper
@@ -37,15 +41,13 @@ import java.net.URISyntaxException
 import java.net.UnknownHostException
 
 
-class PairingActivity : AppCompatActivity() {
-
-    private lateinit var pairingStatusTextView: TextView
-    private lateinit var pairingMessageTextView: TextView
-    private lateinit var retryButton: Button
+class PairingActivity : ComponentActivity() {
 
     private var managerBinder: ComputerManagerService.ComputerManagerBinder? = null
     private var addThread: Thread? = null
     private var isPairingDone = false
+
+    private val viewModel by viewModels<ConnectionScreenViewModel>()
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -119,14 +121,16 @@ class PairingActivity : AppCompatActivity() {
             if (uri.host != null && uri.host.isNotEmpty()) {
                 return uri
             }
-        } catch (ignored: URISyntaxException) { }
+        } catch (ignored: URISyntaxException) {
+        }
 
         try {
             val uri = URI("moonlight://[$rawUserInput]")
             if (uri.host != null && uri.host.isNotEmpty()) {
                 return uri
             }
-        } catch (ignored: URISyntaxException) { }
+        } catch (ignored: URISyntaxException) {
+        }
 
         return null
     }
@@ -162,16 +166,25 @@ class PairingActivity : AppCompatActivity() {
                 details.manualAddress = ComputerDetails.AddressTuple(host, port)
                 success = managerBinder?.addComputerBlocking(details) ?: false
 
-                Log.d("shagaPairingActivity", "Add Computer Blocking Success: $success") // Log the 'success' flag
+                Log.d(
+                    "shagaPairingActivity",
+                    "Add Computer Blocking Success: $success"
+                ) // Log the 'success' flag
 
                 if (!success) {
                     wrongSiteLocal = isWrongSubnetSiteLocalAddress(host)
-                    Log.d("shagaPairingActivity", "Wrong Site Local: $wrongSiteLocal") // Log if it is a wrong site local address
+                    Log.d(
+                        "shagaPairingActivity",
+                        "Wrong Site Local: $wrongSiteLocal"
+                    ) // Log if it is a wrong site local address
                 }
             } else {
                 success = false
                 invalidInput = true
-                Log.d("shagaPairingActivity", "Invalid Input or URI: $invalidInput") // Log invalid input flag
+                Log.d(
+                    "shagaPairingActivity",
+                    "Invalid Input or URI: $invalidInput"
+                ) // Log invalid input flag
             }
 
         } catch (e: InterruptedException) { // InterruptedException catch block
@@ -211,6 +224,7 @@ class PairingActivity : AppCompatActivity() {
                     false
                 )
             }
+
             wrongSiteLocal -> {
                 Log.d("shagaPairingActivity", "Showing wrong site local dialog")
                 Dialog.displayDialog(
@@ -220,13 +234,15 @@ class PairingActivity : AppCompatActivity() {
                     false
                 )
             }
+
             !success -> {
                 Log.d("shagaPairingActivity", "Showing failure dialog")
-                val dialogText = if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
-                    getString(R.string.nettest_text_blocked)
-                } else {
-                    getString(R.string.addpc_fail)
-                }
+                val dialogText =
+                    if (portTestResult != MoonBridge.ML_TEST_RESULT_INCONCLUSIVE && portTestResult != 0) {
+                        getString(R.string.nettest_text_blocked)
+                    } else {
+                        getString(R.string.addpc_fail)
+                    }
                 Dialog.displayDialog(
                     this,
                     getString(R.string.conn_error_title),
@@ -234,18 +250,35 @@ class PairingActivity : AppCompatActivity() {
                     false
                 )
             }
+
             else -> {
-                Log.d("shagaPairingActivity", "Operation successful, showing success toast and proceeding with pairing")
+                Log.d(
+                    "shagaPairingActivity",
+                    "Operation successful, showing success toast and proceeding with pairing"
+                )
                 runOnUiThread {
-                    Toast.makeText(this, getString(R.string.addpc_success), Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.addpc_success), Toast.LENGTH_LONG)
+                        .show()
                     // Call publicDoPairShaga here
                     val pcViewInstance = PcView.getInstance()
                     if (pcViewInstance != null) {
                         val authority = intent.getStringExtra("authority")
-                        authority?.let { PublicKey(it) }?.let { doPairShaga(details, it) } // pass authority as publicKey if not null
+                        authority?.let { PublicKey(it) }?.let {
+                            doPairShaga(
+                                details,
+                                it
+                            )
+                        } // pass authority as publicKey if not null
                     } else {
-                        Log.e("shagaPairingActivity", "PcView instance is null. Cannot proceed with publicDoPairShaga.")
-                        Toast.makeText(this, "Failed to initiate pairing; internal error.", Toast.LENGTH_LONG).show()
+                        Log.e(
+                            "shagaPairingActivity",
+                            "PcView instance is null. Cannot proceed with publicDoPairShaga."
+                        )
+                        Toast.makeText(
+                            this,
+                            "Failed to initiate pairing; internal error.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             }
@@ -261,20 +294,20 @@ class PairingActivity : AppCompatActivity() {
         // Check if the computer is offline or active address is null
         if (computer.state == ComputerDetails.State.OFFLINE || computer.activeAddress == null) {
             Log.d("shagaPairingActivity", "Computer is OFFLINE or activeAddress is null")
-            runOnUiThread {
-                pairingMessageTextView.text = "Computer is OFFLINE or activeAddress is null"
-                retryButton.visibility = View.VISIBLE
-            }
+            viewModel.updateUI(
+                success = false,
+                message = "Computer is OFFLINE or activeAddress is null"
+            )
             return
         }
 
         // Check if managerBinder is null
         if (managerBinder == null) {
             Log.d("shagaPairingActivity", "managerBinder is null")
-            runOnUiThread {
-                pairingMessageTextView.text = "Manager Binder is null"
-                retryButton.visibility = View.VISIBLE
-            }
+            viewModel.updateUI(
+                success = false,
+                message = "Manager Binder is null"
+            )
             return
         }
         // Initiate a new thread for the pairing logic
@@ -302,6 +335,7 @@ class PairingActivity : AppCompatActivity() {
                         message = null
                         success = true
                     }
+
                     else -> {
                         // Generate a PIN string for pairing
                         val pinStr = PairingManager.generatePinString()
@@ -309,22 +343,38 @@ class PairingActivity : AppCompatActivity() {
 
                         // Initialize PairingManager
                         val pm = httpConn.getPairingManager()
-                        Log.d("shagaPairingActivity", "PairingManager initialized: $pm")  // Debug log to check if PairingManager is initialized correctly
+                        Log.d(
+                            "shagaPairingActivity",
+                            "PairingManager initialized: $pm"
+                        )  // Debug log to check if PairingManager is initialized correctly
 
                         // Convert the public key
                         val ed25519PublicKey = sunshinePublicKey.toByteArray()
-                        Log.d("shagaPairingActivity", "ED25519 Public Key: ${ed25519PublicKey.joinToString(", ") { it.toString() }}")  // Debug log to check the ED25519 Public Key
+                        Log.d(
+                            "shagaPairingActivity",
+                            "ED25519 Public Key: ${ed25519PublicKey.joinToString(", ") { it.toString() }}"
+                        )  // Debug log to check the ED25519 Public Key
 
-                        val x25519PublicKey = EncryptionHelper.mapPublicEd25519ToX25519(ed25519PublicKey)
-                        Log.d("shagaPairingActivity", "X25519 Public Key: ${x25519PublicKey.joinToString(", ") { it.toString() }}")  // Debug log to check the X25519 Public Key
+                        val x25519PublicKey =
+                            EncryptionHelper.mapPublicEd25519ToX25519(ed25519PublicKey)
+                        Log.d(
+                            "shagaPairingActivity",
+                            "X25519 Public Key: ${x25519PublicKey.joinToString(", ") { it.toString() }}"
+                        )  // Debug log to check the X25519 Public Key
 
                         // Get Server Info
                         val serverInfo = httpConn.getServerInfo(true)
-                        Log.d("shagaPairingActivity", "Server Info: $serverInfo")  // Debug log to check the Server Info
+                        Log.d(
+                            "shagaPairingActivity",
+                            "Server Info: $serverInfo"
+                        )  // Debug log to check the Server Info
 
                         // Execute the pairing process
                         val pairState = pm.publicPairShaga(serverInfo, pinStr, x25519PublicKey)
-                        Log.d("shagaPairingActivity", "Pairing State: $pairState")  // Debug log to check the Pairing State
+                        Log.d(
+                            "shagaPairingActivity",
+                            "Pairing State: $pairState"
+                        )  // Debug log to check the Pairing State
 
 
                         // Determine the result of the pairing process
@@ -333,14 +383,19 @@ class PairingActivity : AppCompatActivity() {
                             PairingManager.PairState.FAILED -> if (computer.runningGameId != 0) "Computer is in-game" else "Pairing failed"
                             PairingManager.PairState.ALREADY_IN_PROGRESS -> "Pairing already in progress"
                             PairingManager.PairState.PAIRED -> {
-                                managerBinder!!.getComputer(computer.uuid).serverCert = pm.getPairedCert()
+                                managerBinder!!.getComputer(computer.uuid).serverCert =
+                                    pm.getPairedCert()
                                 managerBinder!!.invalidateStateForComputer(computer.uuid)
                                 null
                             }
+
                             else -> null
                         }
                         success = (pairState == PairingManager.PairState.PAIRED)
-                        Log.d("shagaPairingActivity", "Pairing state: $pairState, Message: $message")
+                        Log.d(
+                            "shagaPairingActivity",
+                            "Pairing state: $pairState, Message: $message"
+                        )
                     }
                 }
             } catch (e: UnknownHostException) {
@@ -360,24 +415,33 @@ class PairingActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (success) {
                         // Pairing was successful, now call the function to display the App list
-                        doShagaAppList(computer, true, false)  // Assuming doAppList is accessible here
-                        pairingMessageTextView.text = "Pairing successful"
-                        retryButton.visibility = View.GONE
+                        doShagaAppList(
+                            computer,
+                            true,
+                            false
+                        )  // Assuming doAppList is accessible here
+                        viewModel.updateUI(success = true, message = "Pairing successful")
                     } else {
-                        pairingMessageTextView.text = message ?: "Unknown error"
-                        retryButton.visibility = View.VISIBLE
+                        viewModel.updateUI(success = false, message = message ?: "Unknown error")
                         if (!isFinishing) {
                             finish()
                         }
                     }
                 }
-                Log.d("shagaPairingActivity", "Exiting Thread with Success=$success, Message=$message")
+                Log.d(
+                    "shagaPairingActivity",
+                    "Exiting Thread with Success=$success, Message=$message"
+                )
             }
         }.start()
     }
 
 
-    private fun doShagaAppList(computer: ComputerDetails?, newlyPaired: Boolean, showHiddenGames: Boolean) {
+    private fun doShagaAppList(
+        computer: ComputerDetails?,
+        newlyPaired: Boolean,
+        showHiddenGames: Boolean
+    ) {
         // Add logs for debugging
         Log.d("ShagaAppList", "Entered doShagaAppList")
         Log.d("ShagaAppList", "Computer details: ${computer?.toString()}")
@@ -405,11 +469,13 @@ class PairingActivity : AppCompatActivity() {
                 putExtra(AppView.UUID_EXTRA, computer.uuid)
                 putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired)
                 putExtra(AppView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames)
+                putExtra(AppView.IP_ADDRESS_EXTRA, intent.getStringExtra("ipAddress"))
             }
             // Add logs for debugging
             Log.d("ShagaAppList", "Starting AppView activity")
             // Start the AppView activity
             startActivity(intent)
+            finish()
         } else {
             Log.d("ShagaAppList", "Computer name or UUID is null")
         }
@@ -478,31 +544,10 @@ class PairingActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateUI(success: Boolean, message: String?) {
-        runOnUiThread {
-            if (success) {
-                pairingStatusTextView.text = "Pairing Status: Success"
-                pairingMessageTextView.text = ""
-                retryButton.visibility = View.GONE
-            } else {
-                pairingStatusTextView.text = "Pairing Status: Failed"
-                pairingMessageTextView.text = message ?: "Unknown Error"
-                retryButton.visibility = View.VISIBLE
-            }
-        }
-    }
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("shagaPairingActivity", "onCreate() called")
-        setContentView(R.layout.activity_pairing)
-
-        // Initialize UI Components
-        pairingStatusTextView = findViewById(R.id.pairingStatus)
-        pairingMessageTextView = findViewById(R.id.pairingMessage)
-        retryButton = findViewById(R.id.retryButton)
 
         // Retrieve the clientAccount, authority, and IP address from the intent
         val clientAccount = intent.getStringExtra("clientAccount")
@@ -512,31 +557,40 @@ class PairingActivity : AppCompatActivity() {
         if (authority != null) {
             isPairingDone = false
             // Log the retrieved values for debugging
-            Log.d("shagaPairingActivity", "Received clientAccount: $clientAccount, authority: $authority, and ipAddress: $ipAddress")
+            Log.d(
+                "shagaPairingActivity",
+                "Received clientAccount: $clientAccount, authority: $authority, and ipAddress: $ipAddress"
+            )
 
             // Bind to the ComputerManagerService
             Log.d("shagaPairingActivity", "Binding to ComputerManagerService")
-            bindService(Intent(this, ComputerManagerService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
-
-            // Retry button click listener
-            retryButton.setOnClickListener {
-                doAddPc()
-            }
+            bindService(
+                Intent(this, ComputerManagerService::class.java),
+                serviceConnection,
+                Context.BIND_AUTO_CREATE
+            )
         } else {
             // Handle the null case for authority
             Log.e("shagaPairingActivity", "Authority is null. Cannot proceed.")
             // You could also update the UI here to inform the user
-            updateUI(false, "Authority is missing. Cannot proceed.")
+            viewModel.updateUI(false, "Authority is missing. Cannot proceed.")
+        }
+
+        setContent {
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            ShagaTheme {
+                ConnectionScreen(uiState, onRetryClick = { doAddPc() })
+            }
         }
     }
 
 
     companion object {
-        fun start(context: Context, clientString: String, data: DecodedAffairsData) {
+        fun start(context: Context, clientString: String, ipAddress: String, authority: String) {
             val intent = Intent(context, PairingActivity::class.java)
             intent.putExtra("clientAccount", clientString)
-            intent.putExtra("ipAddress", data.ipAddress)
-            intent.putExtra("authority", data.authority.toString())
+            intent.putExtra("ipAddress", ipAddress)
+            intent.putExtra("authority", authority)
             context.startActivity(intent)
         }
     }

@@ -26,6 +26,11 @@ import com.solana.networking.serialization.serializers.solana.AnchorInstructionS
 import kotlinx.coroutines.runBlocking
 import java.nio.ByteBuffer
 
+data class ActiveRentalInfo(
+    val clientString: String,
+    val affairsData: SolanaApi.AffairsData
+)
+
 class ShagaTransactions {
     companion object {
         const val SEED_AFFAIR_LIST = "affair_list"
@@ -46,8 +51,9 @@ class ShagaTransactions {
 
     object TransactionsObject {
         @JvmStatic
-        fun checkRentalStatus(): Boolean {
+        fun checkRentalStatus(): ActiveRentalInfo? {
             var isRentalActive = false
+            var rentalInfo: ActiveRentalInfo? = null
             Log.d("shagaTransactions", "Entering checkRentalStatus function.")
             runBlocking {
                 // Step 1: Load the authority and hot account from SharedPreferences
@@ -85,6 +91,7 @@ class ShagaTransactions {
                             if (affairData != null) {
                                 isRentalActive = affairData.affairState == SolanaApi.AffairState.Unavailable
                                 Log.d("shagaTransactions", "Is Rental Active: $isRentalActive")
+                                rentalInfo = ActiveRentalInfo(clientPublicKey.toString(), affairData)
                             }
                         }
                     } catch (e: Exception) {
@@ -93,7 +100,7 @@ class ShagaTransactions {
                 }
             }
             Log.d("shagaTransactions", "Exiting checkRentalStatus function with isRentalActive: $isRentalActive")
-            return isRentalActive
+            return rentalInfo.takeIf { isRentalActive }
         }
     }
 

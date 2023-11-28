@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.limelight.shaga.ui.kit.ShagaColors
-import com.limelight.shaga.ui.main.InfoBadge
+import com.limelight.shaga.ui.main.home.InfoBadge
 
 @Composable
 fun SettingSection(

@@ -93,28 +93,28 @@ private fun ProfileButton(
         ) {
             if (!isLoading) {
                 content()
-                Divider(
-                    thickness = 0.5.dp,
-                    color = ShagaColors.ButtonOutline,
-                    modifier = Modifier
-                        .padding(start = 3.dp, end = 6.dp)
-                        .height(24.dp)
-                        .width(0.5.dp)
-                )
-                Image(
-                    painterResource(R.drawable.ic_profile_placeholder_32dp),
-                    "Profile",
-                    modifier = Modifier
-                        .padding(end = 1.dp)
-                        .size(32.dp)
-                )
             } else {
                 ShagaProgressIndicator(
                     color = LocalContentColor.current,
                     size = ProgressBarSize.SMALL_16,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                 )
             }
+            Divider(
+                thickness = 0.5.dp,
+                color = ShagaColors.ButtonOutline,
+                modifier = Modifier
+                    .padding(start = 3.dp, end = 6.dp)
+                    .height(24.dp)
+                    .width(0.5.dp)
+            )
+            Image(
+                painterResource(R.drawable.ic_profile_placeholder_32dp),
+                "Profile",
+                modifier = Modifier
+                    .padding(end = 1.dp)
+                    .size(32.dp)
+            )
         }
     }
 }

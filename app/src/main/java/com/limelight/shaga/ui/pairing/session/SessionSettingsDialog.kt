@@ -26,7 +26,11 @@ import com.limelight.shagaProtocol.PairingActivity
 
 
 @Composable
-fun SessionSettingsDialog(viewModel: SessionSettingsViewModel, onDismissRequest: () -> Unit) {
+fun SessionSettingsDialog(
+    viewModel: SessionSettingsViewModel,
+    onDismissRequest: () -> Unit,
+    onOpenPairing: (clientString: String, ipAddress: String, authority: String) -> Unit
+) {
     val collectedUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uiState = collectedUiState
 
@@ -39,8 +43,16 @@ fun SessionSettingsDialog(viewModel: SessionSettingsViewModel, onDismissRequest:
                 SessionSettingsUiEvent.PaymentError -> {
                     Toast.makeText(context, "Transaction failed", Toast.LENGTH_LONG).show()
                 }
+
                 is SessionSettingsUiEvent.PaymentSuccess -> {
-                    PairingActivity.start(context, event.clientString, event.data)
+                    val data = event.data
+                    //onOpenPairing(event.clientString, data.ipAddress, data.authority.toString())
+                    PairingActivity.start(
+                        context,
+                        event.clientString,
+                        data.ipAddress,
+                        data.authority.toString()
+                    )
                 }
             }
         }
