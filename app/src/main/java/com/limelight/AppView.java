@@ -1,28 +1,5 @@
 package com.limelight;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.HashSet;
-import java.util.List;
-
-import com.limelight.computers.ComputerManagerListener;
-import com.limelight.computers.ComputerManagerService;
-import com.limelight.grid.AppGridAdapter;
-import com.limelight.nvstream.http.ComputerDetails;
-import com.limelight.nvstream.http.NvApp;
-import com.limelight.nvstream.http.NvHTTP;
-import com.limelight.nvstream.http.PairingManager;
-import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.ui.AdapterFragment;
-import com.limelight.ui.AdapterFragmentCallbacks;
-import com.limelight.utils.CacheHelper;
-import com.limelight.utils.Dialog;
-import com.limelight.utils.ServerHelper;
-import com.limelight.utils.ShortcutHelper;
-import com.limelight.utils.SpinnerDialog;
-import com.limelight.utils.UiHelper;
-
-import android.app.Activity;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -35,23 +12,52 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.AdapterView.AdapterContextMenuInfo;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.limelight.computers.ComputerManagerListener;
+import com.limelight.computers.ComputerManagerService;
+import com.limelight.grid.AppGridAdapter;
+import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.NvApp;
+import com.limelight.nvstream.http.NvHTTP;
+import com.limelight.nvstream.http.PairingManager;
+import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.shaga.ui.main.games.AppViewFragment;
+import com.limelight.shaga.ui.main.games.AppViewFragmentCallback;
+import com.limelight.shaga.ui.main.games.GameListViewModel;
+import com.limelight.ui.AdapterFragment;
+import com.limelight.ui.AdapterFragmentCallbacks;
+import com.limelight.utils.CacheHelper;
+import com.limelight.utils.Dialog;
+import com.limelight.utils.ServerHelper;
+import com.limelight.utils.ShortcutHelper;
+import com.limelight.utils.SpinnerDialog;
+import com.limelight.utils.UiHelper;
 
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.HashSet;
+import java.util.List;
+
 // Shaga
 
-public class AppView extends Activity implements AdapterFragmentCallbacks {
+public class AppView extends AppCompatActivity implements AdapterFragmentCallbacks, AppViewFragmentCallback {
     private AppGridAdapter appGridAdapter;
     private String uuidString;
     private ShortcutHelper shortcutHelper;
@@ -79,6 +85,9 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     public final static String UUID_EXTRA = "UUID";
     public final static String NEW_PAIR_EXTRA = "NewPair";
     public final static String SHOW_HIDDEN_APPS_EXTRA = "ShowHiddenApps";
+    public final static String IP_ADDRESS_EXTRA = "ipAddress";
+
+    private GameListViewModel viewModel;
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private final ServiceConnection serviceConnection = new ServiceConnection() {
@@ -108,7 +117,7 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
                         appGridAdapter = new AppGridAdapter(AppView.this,
                                 PreferenceConfiguration.readPreferences(AppView.this),
                                 computer, localBinder.getUniqueId(),
-                                showHiddenApps);
+                                showHiddenApps, viewModel);
                     } catch (Exception e) {
                         e.printStackTrace();
                         finish();
@@ -285,6 +294,9 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        viewModel = new ViewModelProvider(this).get(GameListViewModel.class);
+        viewModel.setIpAddress(getIntent().getStringExtra(IP_ADDRESS_EXTRA));
+
         // Assume we're in the foreground when created to avoid a race
         // between binding to CMS and onResume()
         inForeground = true;
@@ -313,12 +325,12 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
         String computerName = getIntent().getStringExtra(NAME_EXTRA);
 
         TextView label = findViewById(R.id.appListText);
-        setTitle(computerName);
         label.setText(computerName);
 
-
-
-
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.newUiContainer, new AppViewFragment())
+                .commit();
 
         // Bind to the computer manager service
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
@@ -638,17 +650,26 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
                                     long id) {
                 AppObject app = (AppObject) appGridAdapter.getItem(pos);
 
-                // Only open the context menu if something is running, otherwise start it
-                if (lastRunningAppId != 0) {
-                    openContextMenu(arg1);
-                } else {
-                    ServerHelper.doStart(AppView.this, app.app, computer, managerBinder);
-                }
+                openApp(app, arg1);
             }
         });
         UiHelper.applyStatusBarPadding(listView);
         registerForContextMenu(listView);
         listView.requestFocus();
+    }
+
+    private void openApp(AppObject app, View view) {
+        // Only open the context menu if something is running, otherwise start it
+        if (lastRunningAppId != 0 && view != null) {
+            openContextMenu(view);
+        } else {
+            ServerHelper.doStart(AppView.this, app.app, computer, managerBinder);
+        }
+    }
+
+    @Override
+    public void onAppClick(@NonNull AppObject app) {
+        openApp(app, null);
     }
 
     public static class AppObject {

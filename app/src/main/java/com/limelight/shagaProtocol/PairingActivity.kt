@@ -24,6 +24,7 @@ import com.limelight.nvstream.http.PairingManager
 import com.limelight.nvstream.jni.MoonBridge
 import com.limelight.shaga.ui.connection.ConnectionScreen
 import com.limelight.shaga.ui.connection.ConnectionScreenViewModel
+import com.limelight.shaga.ui.kit.ShagaTheme
 import com.limelight.solanaWallet.EncryptionHelper
 import com.limelight.utils.Dialog
 import com.limelight.utils.ServerHelper
@@ -468,11 +469,13 @@ class PairingActivity : ComponentActivity() {
                 putExtra(AppView.UUID_EXTRA, computer.uuid)
                 putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired)
                 putExtra(AppView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames)
+                putExtra(AppView.IP_ADDRESS_EXTRA, intent.getStringExtra("ipAddress"))
             }
             // Add logs for debugging
             Log.d("ShagaAppList", "Starting AppView activity")
             // Start the AppView activity
             startActivity(intent)
+            finish()
         } else {
             Log.d("ShagaAppList", "Computer name or UUID is null")
         }
@@ -575,7 +578,9 @@ class PairingActivity : ComponentActivity() {
 
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-            ConnectionScreen(uiState, onRetryClick = { doAddPc() })
+            ShagaTheme {
+                ConnectionScreen(uiState, onRetryClick = { doAddPc() })
+            }
         }
     }
 

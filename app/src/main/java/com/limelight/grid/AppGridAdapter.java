@@ -16,6 +16,7 @@ import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.grid.assets.NetworkAssetLoader;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.shaga.ui.main.games.GameListViewModel;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,17 +34,19 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
     private final ComputerDetails computer;
     private final String uniqueId;
     private final boolean showHiddenApps;
+    private GameListViewModel viewModel;
 
     private CachedAppAssetLoader loader;
     private Set<Integer> hiddenAppIds = new HashSet<>();
     private ArrayList<AppView.AppObject> allApps = new ArrayList<>();
 
-    public AppGridAdapter(Context context, PreferenceConfiguration prefs, ComputerDetails computer, String uniqueId, boolean showHiddenApps) {
+    public AppGridAdapter(Context context, PreferenceConfiguration prefs, ComputerDetails computer, String uniqueId, boolean showHiddenApps, GameListViewModel viewModel) {
         super(context, getLayoutIdForPreferences(prefs));
 
         this.computer = computer;
         this.uniqueId = uniqueId;
         this.showHiddenApps = showHiddenApps;
+        this.viewModel = viewModel;
 
         updateLayoutWithPreferences(context, prefs);
     }
@@ -69,6 +72,7 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
                 app.isHidden = hiddenAppIds.contains(app.app.getAppId());
             }
         }
+        viewModel.update(itemList);
 
         notifyDataSetChanged();
     }
@@ -147,11 +151,14 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
             itemList.add(app);
             sortList(itemList);
         }
+
+        viewModel.update(itemList);
     }
 
     public void removeApp(AppView.AppObject app) {
         itemList.remove(app);
         allApps.remove(app);
+        viewModel.update(itemList);
     }
 
     @Override

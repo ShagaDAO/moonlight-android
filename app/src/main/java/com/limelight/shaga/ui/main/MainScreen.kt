@@ -116,7 +116,7 @@ fun MainScreen(
 }
 
 @Composable
-private fun BottomNavigation(modifier: Modifier = Modifier) {
+fun BottomNavigation(modifier: Modifier = Modifier) {
     NavigationBar(
         modifier.height(52.dp),
         containerColor = ShagaColors.Background

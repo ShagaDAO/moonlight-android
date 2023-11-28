@@ -33,6 +33,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
+import com.bumptech.glide.integration.compose.GlideImage
 import com.limelight.R
 import com.limelight.shaga.ui.kit.GameTileTag
 import com.limelight.shaga.ui.kit.HeaderWithShowAll
@@ -64,14 +66,15 @@ fun GameListScreen() {
             modifier = Modifier.weight(1f)
         ) {
             repeat(16) {
-                item { GameTile() }
+                item { GameTile(title = "Decentraland", imageUrl = null) }
             }
         }
     }
 }
 
+@OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-private fun GameTile(modifier: Modifier = Modifier) {
+fun GameTile(title: String, imageUrl: String?, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = ShagaColors.GameTileBackground,
@@ -80,7 +83,7 @@ private fun GameTile(modifier: Modifier = Modifier) {
             .width(162.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(1.dp, ShagaColors.ButtonOutline, RoundedCornerShape(12.dp))
-            .clickable { }
+            .clickable(onClick = onClick)
     ) {
         Column {
             Box(
@@ -88,14 +91,25 @@ private fun GameTile(modifier: Modifier = Modifier) {
                     .fillMaxWidth()
                     .height(133.dp)
             ) {
-                Image(
-                    painterResource(R.drawable.decentraland),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(RoundedCornerShape(8.dp))
-                )
+                if (imageUrl == null) {
+                    Image(
+                        painterResource(R.drawable.decentraland),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                } else {
+                    GlideImage(
+                        imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
                 GameTileTag(
                     icon = {
                         Box {
@@ -138,7 +152,7 @@ private fun GameTile(modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Decentraland",
+                    title,
                     maxLines = 1,
                     style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.sp),
                     modifier = Modifier.weight(1f)

@@ -55,7 +55,7 @@ fun ConnectionScreen(uiState: ConnectionScreenState, onRetryClick: () -> Unit) {
                 modifier = Modifier.size(100.dp)
             )
             Text(
-                text = uiState.message,
+                text = uiState.message.uppercase(),
                 style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp)
